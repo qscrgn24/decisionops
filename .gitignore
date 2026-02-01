@@ -18,3 +18,6 @@ build/
 
 # Editor
 .vscode/
+
+# Uploaded files
+backend/storage/uploads/
