@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: decisionops_db
+    environment:
+      POSTGRES_USER: decisionops
+      POSTGRES_PASSWORD: decisionops
+      POSTGRES_DB: decisionops
+    ports:
+      - "5432:5432"
+    volumes:
+      - decisionops_pgdata:/var/lib/postgresql/data
+
+volumes:
+  decisionops_pgdata:
