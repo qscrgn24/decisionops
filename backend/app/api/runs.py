@@ -9,7 +9,7 @@ router = APIRouter(prefix="/runs", tags=["runs"])
 
 @router.post("", response_model=RunOut)
 def create_run_endpoint(payload: RunCreate, db=Depends(get_db)):
-    return create_run(db, dataset_id=payload.dataset_id)
+    return create_run(db, dataset_id=payload.dataset_id, config=payload.config.model_dump())
 
 @router.get("/{run_id}", response_model=RunOut)
 def get_run_endpoint(run_id, db=Depends(get_db)):
