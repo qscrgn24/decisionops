@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.db.deps import get_db
 from app.schemas.runs import RunCreate, RunOut
@@ -107,8 +108,9 @@ def execute_optimal(run_id: str, db: Session = Depends(get_db)):
         )
 
         existing = run.result_json or {}
-        existing['optimal'] = optimal
-        run.result_json = existing
+        run.result_json = {**existing, "optimal": optimal}
+        flag_modified(run, "result_json")
+
 
         run.status = "succeeded"
         update_run(db, run)
