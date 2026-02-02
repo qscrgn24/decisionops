@@ -55,5 +55,13 @@ export const API = {
         if (!res.ok) throw new Error(`execute greedy HTTP ${res.status}`);
         return res.json();
     },
+
+    async executeOptimal(runId: string) {
+        const res = await fetch(`/api/runs/${runId}/execute-optimal`, {
+            method: "POST",
+        });
+        if (!res.ok) throw new Error(`execute optimal HTTP ${res.status}`);
+        return res.json();
+    },
 };
 

@@ -160,9 +160,31 @@ export default function App() {
     }
   }
 
+  async function onExecuteOptimal() {
+    setError(null);
+    if (!run?.id) {
+      setError("Create a run first.");
+      return;
+    }
+    setExecuting(true);
+    try {
+      const resp = (await API.executeOptimal(run.id)) as RunResp;
+      setRun(resp);
+    } catch (e: any) {
+      setError(e?.message ?? "Execute optimal failed");
+    } finally {
+      setExecuting(false);
+    }
+  }
+
   const baseline = run?.result_json?.baseline ?? null;
-  const selectedItems: any[] = baseline?.selected_items ?? [];
-  const summary = baseline?.summary ?? null;
+  const optimal = run?.result_json?.optimal ?? null;
+
+  const baselineItems: any[] = baseline?.selected_items ?? [];
+  const baselineSummary = baseline?.summary ?? null;
+
+  const optimalItems: any[] = optimal?.selected_items ?? [];
+  const optimalSummary = optimal?.summary ?? null;
 
   return (
     <div style={{ fontFamily: "system-ui", padding: 24, maxWidth: 1100 }}>
@@ -328,6 +350,10 @@ export default function App() {
           <button onClick={onExecuteGreedy} disabled={!run?.id || executing} style={{ padding: "8px 12px" }}>
             {executing ? "Executing..." : "Execute Greedy"}
           </button>
+
+          <button onClick={onExecuteOptimal} disabled={!run?.id || executing} style={{ padding: "8px 12px" }}>
+            {executing ? "Executing..." : "Execute Optimal"}
+          </button>
         </div>
 
         {run && (
@@ -340,47 +366,107 @@ export default function App() {
       </div>
 
       {/* Results */}
-      {run && run.status === "succeeded" && baseline && (
+      {run && run.status === "succeeded" && (baseline || optimal) && (
         <div style={{ padding: 16, border: "1px solid #ddd", borderRadius: 8 }}>
           <h2 style={{ marginTop: 0 }}>4) Results</h2>
 
-          {summary && (
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              <div><b>Selected:</b> {summary.selected_count}</div>
-              <div><b>Total cost:</b> {summary.total_cost}</div>
-              <div><b>Total value:</b> {summary.total_value}</div>
-              {summary.total_risk != null && <div><b>Total risk:</b> {summary.total_risk}</div>}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {/* Baseline */}
+            <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12 }}>
+              <h3 style={{ marginTop: 0 }}>Baseline (Greedy)</h3>
+
+              {!baseline && <div style={{ color: "#666" }}>Not executed yet.</div>}
+
+              {baseline && baselineSummary && (
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div><b>Selected:</b> {baselineSummary.selected_count}</div>
+                  <div><b>Total cost:</b> {baselineSummary.total_cost}</div>
+                  <div><b>Total value:</b> {baselineSummary.total_value}</div>
+                  {baselineSummary.total_risk != null && <div><b>Total risk:</b> {baselineSummary.total_risk}</div>}
+                </div>
+              )}
+
+              {baseline && (
+                <>
+                  <div style={{ marginTop: 10, overflowX: "auto", border: "1px solid #ddd", borderRadius: 8 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          {["item_id", "name", "cost", "value", "category", "risk"].map((c) => (
+                            <th key={c} style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd", background: "#fafafa" }}>
+                              {c}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {baselineItems.map((it, idx) => (
+                          <tr key={idx}>
+                            {["item_id", "name", "cost", "value", "category", "risk"].map((c) => {
+                              const v = it[c];
+                              return (
+                                <td key={c} style={{ padding: 10, borderBottom: "1px solid #eee", color: v == null ? "#888" : "inherit" }}>
+                                  {v == null ? "—" : String(v)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </div>
-          )}
 
-          <h3 style={{ marginTop: 14 }}>Selected items</h3>
+            {/* Optimal */}
+            <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12 }}>
+              <h3 style={{ marginTop: 0 }}>Optimal (CP-SAT)</h3>
 
-          <div style={{ overflowX: "auto", border: "1px solid #ddd", borderRadius: 8 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["item_id", "name", "cost", "value", "category", "risk"].map((c) => (
-                    <th key={c} style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd", background: "#fafafa" }}>
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {selectedItems.map((it, idx) => (
-                  <tr key={idx}>
-                    {["item_id", "name", "cost", "value", "category", "risk"].map((c) => {
-                      const v = it[c];
-                      return (
-                        <td key={c} style={{ padding: 10, borderBottom: "1px solid #eee", color: v == null ? "#888" : "inherit" }}>
-                          {v == null ? "—" : String(v)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              {!optimal && <div style={{ color: "#666" }}>Not executed yet.</div>}
+
+              {optimal && optimalSummary && (
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div><b>Selected:</b> {optimalSummary.selected_count}</div>
+                  <div><b>Total cost:</b> {optimalSummary.total_cost}</div>
+                  <div><b>Total value:</b> {optimalSummary.total_value}</div>
+                  {optimalSummary.total_risk != null && <div><b>Total risk:</b> {optimalSummary.total_risk}</div>}
+                  {optimalSummary.status && <div><b>Status:</b> {optimalSummary.status}</div>}
+                </div>
+              )}
+
+              {optimal && (
+                <>
+                  <div style={{ marginTop: 10, overflowX: "auto", border: "1px solid #ddd", borderRadius: 8 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          {["item_id", "name", "cost", "value", "category", "risk"].map((c) => (
+                            <th key={c} style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd", background: "#fafafa" }}>
+                              {c}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {optimalItems.map((it, idx) => (
+                          <tr key={idx}>
+                            {["item_id", "name", "cost", "value", "category", "risk"].map((c) => {
+                              const v = it[c];
+                              return (
+                                <td key={c} style={{ padding: 10, borderBottom: "1px solid #eee", color: v == null ? "#888" : "inherit" }}>
+                                  {v == null ? "—" : String(v)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
