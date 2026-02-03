@@ -63,5 +63,25 @@ export const API = {
         if (!res.ok) throw new Error(`execute optimal HTTP ${res.status}`);
         return res.json();
     },
+
+    async executeAll(payload: {
+        dataset_id: string;
+        budget: number;
+        max_items: number | null;
+        objective: "value" | "risk_adjusted_value";
+        lambda_risk: number;
+        time_limit_seconds?: number;
+    }) {
+        const res = await fetch(`/api/runs/execute-all`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const t = await res.text();
+            throw new Error(t || `execute all HTTP ${res.status}`);
+        }
+        return res.json();
+    },
 };
 

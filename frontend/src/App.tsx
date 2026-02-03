@@ -15,6 +15,8 @@ type PreviewResp = {
   has_category: boolean;
   has_risk: boolean;
   risk_scale: string | null;
+  resolved_columns?: Record<string, string | null>;
+  missing_required?: string[];
   rows: Array<Record<string, any>>;
   warnings: string[];
 };
@@ -37,6 +39,8 @@ function numOrNull(s: string): number | null {
   return Number.isFinite(v) ? v : null;
 }
 
+const CANON_PREVIEW_COLS = ["item_id", "name", "cost", "value", "category", "risk"] as const;
+
 export default function App() {
   // Upload + preview
   const [name, setName] = useState("Demo Dataset");
@@ -46,6 +50,9 @@ export default function App() {
 
   const [preview, setPreview] = useState<PreviewResp | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+
+  const [runningAll, setRunningAll] = useState(false);
+  const [timeLimitS, setTimeLimitS] = useState("5");
 
   // Run config
   const [budget, setBudget] = useState("300");
@@ -177,6 +184,57 @@ export default function App() {
     }
   }
 
+  async function onRunAll() {
+    setError(null);
+    setRun(null);
+
+    if (!datasetId) {
+      setError("Upload a dataset first.");
+      return;
+    }
+
+    const b = numOrNull(budget);
+    if (b === null || b <= 0) {
+      setError("Budget must be a positive number.");
+      return;
+    }
+
+    const mi = numOrNull(maxItems);
+    if (mi !== null && mi <= 0) {
+      setError("max_items must be > 0 (or empty).");
+      return;
+    }
+
+    const lr = numOrNull(lambdaRisk);
+    if (lr === null || lr < 0) {
+      setError("lambda_risk must be >= 0.");
+      return;
+    }
+    
+    const tls = numOrNull(timeLimitS);
+    if (tls === null || tls <= 0) {
+      setError("time_limit_s must be a positive number.");
+      return;
+    }
+
+    setRunningAll(true);
+    try {
+      const resp = (await API.executeAll({
+        dataset_id: datasetId,
+        budget: b,
+        max_items: mi,
+        objective,
+        lambda_risk: lr,
+        time_limit_seconds: tls,
+      })) as RunResp;
+      setRun(resp);
+    } catch (e: any) {
+      setError(e?.message ?? "Run all failed");
+    } finally {
+      setRunningAll(false);
+    }
+  }
+
   const baseline = run?.result_json?.baseline ?? null;
   const optimal = run?.result_json?.optimal ?? null;
 
@@ -262,6 +320,24 @@ export default function App() {
               {preview.risk_scale ? `(${preview.risk_scale})` : ""}
             </div>
             <div><b>Has category:</b> {String(preview.has_category)}</div>
+            {preview.missing_required && preview.missing_required.length > 0 && (
+              <div style={{ marginTop: 10, padding: 12, border: "1px solid #ddd", background: "#fff5f5" }}>
+                <b>Missing required columns:</b> {preview.missing_required.join(", ")}
+              </div>
+            )}
+            {preview.resolved_columns && (
+              <div style={{ marginTop: 10, padding: 12, border: "1px solid #ddd", background: "#fafafa" }}>
+                <b>Resolved columns</b>
+                <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "160px 1fr", rowGap: 6 }}>
+                  {Object.entries(preview.resolved_columns).map(([canon, orig]) => (
+                    <div key={canon} style={{ display: "contents" }}>
+                      <div style={{ color: "#555" }}>{canon}</div>
+                      <div style={{ color: orig ? "#111" : "#888" }}>{orig ?? "— (auto)"}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {preview.warnings?.length > 0 && (
@@ -279,7 +355,7 @@ export default function App() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {preview.columns.map((c) => (
+                  {CANON_PREVIEW_COLS.map((c) => (
                     <th
                       key={c}
                       style={{
@@ -297,11 +373,18 @@ export default function App() {
               <tbody>
                 {preview.rows.map((row, idx) => (
                   <tr key={idx}>
-                    {preview.columns.map((c) => {
-                      const v = row[c];
+                    {CANON_PREVIEW_COLS.map((c) => {
+                      const v = (row as any)[c];
                       return (
-                        <td key={c} style={{ padding: 10, borderBottom: "1px solid #eee", color: v == null ? "#888" : "inherit" }}>
-                          {v == null ? "—" : String(v)}
+                        <td
+                          key={c}
+                          style={{
+                            padding: 10,
+                            borderBottom: "1px solid #eee",
+                            color: v == null ? "#888" : "inherit",
+                          }}
+                        >
+                          {v == null || v === "" ? "—" : String(v)}
                         </td>
                       );
                     })}
@@ -340,9 +423,22 @@ export default function App() {
               <option value="risk_adjusted_value">risk_adjusted_value</option>
             </select>
           </label>
+
+          <label>
+            Time limit (seconds)
+            <input
+              value={timeLimitS}
+              onChange={(e) => setTimeLimitS(e.target.value)}
+              style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
+            />
+          </label>
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+          <button onClick={onRunAll} disabled={!datasetId || runningAll} style={{ padding: "8px 12px" }}>
+            {runningAll ? "Running..." : "Run All (Greedy + Optimal)"}
+          </button>
+
           <button onClick={onCreateRun} disabled={!datasetId || creatingRun} style={{ padding: "8px 12px" }}>
             {creatingRun ? "Creating..." : "Create Run"}
           </button>
