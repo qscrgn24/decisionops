@@ -21,3 +21,4 @@ build/
 
 # Uploaded files
 backend/storage/uploads/
+backend/storage/tmp/
