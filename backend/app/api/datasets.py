@@ -45,8 +45,6 @@ def preview_dataset(dataset_id, n: int = 20):
         res = preview_and_validate_csv(file_path, n=n)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Dataset file not found.")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     
     return DatasetPreviewOut(
         dataset_id=dataset_id,
@@ -55,6 +53,8 @@ def preview_dataset(dataset_id, n: int = 20):
         has_category=res.has_category,
         has_risk=res.has_risk,
         risk_scale=res.risk_scale,
+        resolved_columns=res.resolved_columns,
+        missing_required=res.missing_required,
         rows=res.rows,
         warnings=res.warnings
     )

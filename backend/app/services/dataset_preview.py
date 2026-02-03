@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-REQUIRED_COLS = {"item_id", "name", "cost", "value"}
-OPTIONAL_COLS = {"category", "risk"}
+from app.services.csv_normalize import resolve_columns
+from app.services.parse_numbers import parse_float
 
 @dataclass
 class PreviewResult:
@@ -16,13 +16,21 @@ class PreviewResult:
     risk_scale: str | None # "0-1" | "0-100" | None
     warnings : list[str]
 
+    # New: forgiving UX metadata
+    resolved_columns: dict[str, str | None]  # canon -> original column name (or None)
+    missing_required: list[str]
 
-def _parse_float(value, field, row_idx):
-    try:
-        return float(value)
-    except Exception:
-        raise ValueError(f"Row {row_idx}: Invalid number for '{field}': {value!r}")
-    
+
+def _dedupe(warnings: list[str]):
+    # Deduplication warnings (keep order)
+    deduped = []
+    seen = set()
+    for w in warnings:
+        if w not in seen:
+            deduped.append(w)
+            seen.add(w)
+    return deduped
+
 
 def preview_and_validate_csv(file_path, *, n: int = 20):
     if n < 1:
@@ -33,13 +41,11 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
     if not file_path.exists():
         raise FileNotFoundError(f"CSV file not found: {file_path}")
     
-    warnings = []
+    warnings: list[str] = []
 
     # --- Pass 1: read header + detect columns + compute max risk + count rows ---
     total_rows = 0
     max_risk = None # type: float | None
-    has_category = False
-    has_risk = False
 
     with file_path.open("r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -47,27 +53,58 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
             raise ValueError("CSV file is missing a header row.")
         
         columns = [c.strip() for c in reader.fieldnames if c is not None]
-        columns_set = set(columns)
+        res = resolve_columns(columns)
 
-        missing = sorted(REQUIRED_COLS - columns_set)
-        if missing:
-            raise ValueError(f"Missing required columns: {missing}. Required {sorted(REQUIRED_COLS)}")
+        # canon -> original column name (or None)
+        resolved_columns = {k: res.mapping.get(k) for k in ["item_id", "name", "cost", "value", "category", "risk"]}
 
-        has_category = "category" in columns_set
-        has_risk = "risk" in columns_set
+        has_category = resolved_columns["category"] is not None
+        has_risk = resolved_columns["risk"] is not None
+
+        risk_col = resolved_columns["risk"]
 
         for row in reader:
             total_rows += 1
-            if has_risk:
-                risk_raw = row.get("risk", "").strip()
+            if has_risk and risk_col:
+                risk_raw = (row.get(risk_col) or "").strip()
                 if risk_raw == "":
                     continue
-                risk_value = _parse_float(risk_raw, "risk", total_rows)
+                risk_value = parse_float(risk_raw, default=None)
+                if risk_value is None:
+                    # Don't hard-fail preview; warn and ignore for scale detection
+                    warnings.append(f"Some rows have non-numeric risk values; treating missing/invalid risk as 0.")
+                    continue
                 if max_risk is None or risk_value > max_risk:
                     max_risk = risk_value
 
     if total_rows == 0:
-        raise ValueError("CSV file contains no data rows.")
+        return PreviewResult(
+            columns=columns,
+            rows = [],
+            total_rows=0,
+            has_category=False,
+            has_risk=False,
+            risk_scale=None,
+            warnings=["CSV file contains no data rows."],
+            resolved_columns=resolved_columns,
+            missing_required=res.missing_required,
+        )
+
+    # If required columns missing, be forgiving: return metadata + warnings + empty rows
+    if res.missing_required:
+        warnings = list(res.warnings) + warnings
+        warnings.append(f"Missing required columns (after aliasing): {res.missing_required}.")
+        return PreviewResult(
+            columns=columns,
+            rows=[],
+            total_rows=total_rows,
+            has_category=has_category,
+            has_risk=has_risk,
+            risk_scale=None,
+            warnings=_dedupe(warnings),
+            resolved_columns=resolved_columns,
+            missing_required=res.missing_required,
+        )
         
     risk_scale = None
     if has_risk:
@@ -80,10 +117,18 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
             risk_scale = "0-100"
             warnings.append("Risk detected in [0,100]; normalizing to [0,1].")
         else:
-            raise ValueError("Risk values must be in [0,1] or [0,100].")
+            warnings.append("Risk values must be in [0,1] or [0,100]. Treating invalid risk as 0.")
+            risk_scale = "0-1"
             
     # --- Pass 2: produce preview rows (first n) with basic type validation ---
-    rows_out = []
+    rows_out: list[dict[str, Any]] = []
+
+    col_item_id = resolved_columns["item_id"]
+    col_name = resolved_columns["name"]
+    col_cost = resolved_columns["cost"]
+    col_value = resolved_columns["value"]
+    col_category = resolved_columns["category"]
+    col_risk = resolved_columns["risk"]
 
     with file_path.open("r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -92,55 +137,57 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
             if row_idx > n:
                 break
 
-            item_id = (row.get("item_id") or "").strip()
-            name = (row.get("name") or "").strip()
-            cost_raw = (row.get("cost") or "").strip()
-            value_raw = (row.get("value") or "").strip()
-
-            if item_id == "":
-                raise ValueError(f"Row {row_idx}: 'item_id' cannot be empty.")
+            name = (row.get(col_name) or "").strip() if col_name else ""
             if name == "":
-                raise ValueError(f"Row {row_idx}: 'name' cannot be empty.")
-            
-            cost = _parse_float(cost_raw, "cost", row_idx)
-            value = _parse_float(value_raw, "value", row_idx)
+                # skip empty rows
+                continue
+
+            cost_raw = (row.get(col_cost) or "").strip() if col_cost else ""
+            value_raw = (row.get(col_value) or "").strip() if col_value else ""
+
+            cost = parse_float(cost_raw, default=None)
+            value = parse_float(value_raw, default=None)
+
+            if cost is None or value is None:
+                warnings.append("Some rows have invalid cost/value; preview may be incomplete.")
+                continue
 
             if cost < 0:
-                raise ValueError(f"Row {row_idx}: 'cost' cannot be negative.")
+                warnings.append("Some rows have negative cost; preview may be incomplete.")
+                continue
             if value < 0:
-                raise ValueError(f"Row {row_idx}: 'value' cannot be negative.")
-            
-            row_out = {
+                warnings.append("Some rows have negative value; preview may be incomplete.")
+                continue
+
+            # item_id is optional; auto-generate if absent or empty
+            item_id = ""
+            if col_item_id:
+                item_id = (row.get(col_item_id) or "").strip()
+            if item_id == "":
+                item_id = f"I{row_idx}"
+
+            row_out: dict[str, Any] = {
                 "item_id": item_id,
                 "name": name,
-                "cost": cost,
-                "value": value,
+                "cost": float(cost),
+                "value": float(value),
             }
 
-            if has_category:
-                row_out["category"] = (row.get("category") or "").strip()
+            if has_category and col_category:
+                row_out["category"] = (row.get(col_category) or "").strip()
 
-            if has_risk:
-                risk_raw = (row.get("risk") or "").strip()
-                if risk_raw == "":
-                    risk_value = 0.0
-                    warnings.append("Some rows have empty risk; treating missing risk as 0.")
-                else:
-                    risk_value = _parse_float(risk_raw, "risk", row_idx)
-                    if risk_scale == "0-100":
-                        risk_value = risk_value / 100.0
-                row_out["risk"] = risk_value
-
+            if has_risk and col_risk:
+                risk_raw = (row.get(col_risk) or "").strip()
+                rv = parse_float(risk_raw, default=0.0)
+                if rv is None:
+                    rv = 0.0
+                if risk_scale == "0-100":
+                    rv = rv / 100.0
+                row_out["risk"] = float(rv)
 
             rows_out.append(row_out)
 
-    # Deduplication warnings (keep order)
-    deduped = []
-    seen = set()
-    for w in warnings:
-        if w not in seen:
-            deduped.append(w)
-            seen.add(w)
+    warnings = list(res.warnings) + warnings
 
     return PreviewResult(
         columns=columns,
@@ -149,6 +196,7 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
         has_category=has_category,
         has_risk=has_risk,
         risk_scale=risk_scale,
-        warnings=deduped
+        warnings=_dedupe(warnings),
+        resolved_columns=resolved_columns,
+        missing_required=[],
     )
-

@@ -1,110 +1,89 @@
+from __future__ import annotations
+
 import csv
 from pathlib import Path
-from typing import Any
+from typing import Any, Tuple
 
-from app.services.dataset_preview import REQUIRED_COLS, _parse_float # reuse existing helpers
+from app.services.csv_normalize import resolve_columns
+from app.services.parse_numbers import parse_float
 
 
-def _detect_risk_scale(file_path: Path):
-    """Return '0-1', '0-100', or None if no risk column."""
-    max_risk = None
-
-    with file_path.open("r", newline='', encoding="utf-8") as f:
+def _iter_items(file_path: Path) -> Tuple[list[str], list[dict[str, Any]], float]:
+    """
+    Loads CSV and returns:
+      - columns: original CSV columns
+      - items: canonicalized dicts with keys: item_id, name, cost, value, category?, risk?
+      - risk_scale: 1.0 or 100.0 (used if original looked like percentages)
+    """
+    with open(file_path, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        if reader.fieldnames is None:
-            raise ValueError("CSV file has no header row.")
-        
-        columns = [c.strip() for c in reader.fieldnames if c is not None]
-        columns_set = set(columns)
+        columns = reader.fieldnames or []
+        res = resolve_columns(columns)
 
-        missing = sorted(REQUIRED_COLS - columns_set)
-        if missing:
-            raise ValueError(f"Missing required columns: {missing}. Required {sorted(REQUIRED_COLS)}")
-        
-        if "risk" not in columns_set:
-            return None
+        # Require that name/cost/value can be resolved (via aliases)
+        if res.missing_required:
+            raise ValueError(f"Missing required columns (after aliasing): {res.missing_required}")
 
-        row_idx = 0
-        for row in reader:
-            row_idx += 1
-            risk_raw = row.get("risk", "").strip()
-            if risk_raw == "":
+        col_item_id = res.mapping.get("item_id")  # optional
+        col_name = res.mapping["name"]
+        col_cost = res.mapping["cost"]
+        col_value = res.mapping["value"]
+        col_category = res.mapping.get("category")
+        col_risk = res.mapping.get("risk")
+
+        raw_items: list[dict[str, Any]] = []
+        risks_raw: list[float] = []
+
+        for idx, row in enumerate(reader, start=1):
+            name = (row.get(col_name) or "").strip()
+            if not name:
+                # skip empty rows
                 continue
-            risk_value = _parse_float(risk_raw, "risk", row_idx)
-            if max_risk is None or risk_value > max_risk:
-                max_risk = risk_value
-        
-    if max_risk is None:
-        return '0-1' # treat as 0 if empty
-    if max_risk >= 0.0 and max_risk <= 1.0:
-        return '0-1'
-    if max_risk >= 0.0 and max_risk <= 100.0:
-        return '0-100'
-    
-    raise ValueError("Risk values must be in [0,1] or [0,100].")
 
+            cost = parse_float(row.get(col_cost), default=None)
+            value = parse_float(row.get(col_value), default=None)
 
-def _iter_items(file_path: Path):
-    """
-    Returns (columns, items, risk_scale).
-    Each item contains: item_id, name, cost, value, category(optional), risk(optional normalized 0-1)
-    """
-    risk_scale = _detect_risk_scale(file_path)
-
-    with file_path.open("r", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        columns = [c.strip() for c in reader.fieldnames if c is not None]
-        columns_set = set(columns)
-
-        has_category = "category" in columns_set
-        has_risk = "risk" in columns_set
-
-        items: list[dict[str, Any]] = []
-        row_idx = 0
-        for row in reader:
-            row_idx += 1
-            item_id = (row.get("item_id") or "").strip()
-            name = (row.get("name") or "").strip()
-
-            if item_id == "":
-                raise ValueError(f"Row {row_idx}: item_id is empty")
-            if name == "":
-                raise ValueError(f"Row {row_idx}: name is empty")
-            
-            cost = _parse_float((row.get("cost") or "").strip(), "cost", row_idx)
-            value = _parse_float((row.get("value") or "").strip(), "value", row_idx)
+            if cost is None or value is None:
+                raise ValueError(f"Row {idx}: cost/value not parseable")
 
             if cost <= 0:
-                raise ValueError(f"Row {row_idx}: cost must be > 0")
-            if value <= 0:
-                raise ValueError(f"Row {row_idx}: value must be >= 0")
-            
+                raise ValueError(f"Row {idx}: cost must be > 0")
+
+            item_id = (row.get(col_item_id) or "").strip() if col_item_id else ""
+            if not item_id:
+                item_id = f"I{idx}"
+
             item: dict[str, Any] = {
                 "item_id": item_id,
                 "name": name,
-                "cost": cost,
-                "value": value,
+                "cost": float(cost),
+                "value": float(value),
             }
 
-            if has_category:
-                item["category"] = (row.get("category") or "").strip() or None
+            if col_category:
+                cat = (row.get(col_category) or "").strip()
+                if cat:
+                    item["category"] = cat
 
-            if has_risk:
-                risk_raw = (row.get("risk") or "").strip()
-                if risk_raw == "":
-                    risk_value = 0.0
-                else:
-                    risk_value = _parse_float(risk_raw, "risk", row_idx)
-                    if risk_scale == '0-100':
-                        risk_value /= 100.0
-                item["risk"] = risk_value
-            
-            items.append(item)
+            if col_risk:
+                r = parse_float(row.get(col_risk), default=None)
+                if r is not None:
+                    item["risk"] = float(r)
+                    risks_raw.append(float(r))
 
-    if len(items) == 0:
-        raise ValueError("CSV has no data rows")
-    
-    return columns, items, risk_scale
+            raw_items.append(item)
+
+    # Risk normalization: if it looks like 0..100, map to 0..1
+    risk_scale = 1.0
+    if risks_raw:
+        mx = max(risks_raw)
+        if mx > 1.0 and mx <= 100.0:
+            risk_scale = 100.0
+            for it in raw_items:
+                if "risk" in it:
+                    it["risk"] = float(it["risk"]) / 100.0
+
+    return columns, raw_items, risk_scale
 
 
 def greedy_select(*, file_path: Path, budget: float, max_items: int | None, objective: str, lambda_risk: float):
