@@ -41,6 +41,25 @@ function numOrNull(s: string): number | null {
 
 const CANON_PREVIEW_COLS = ["item_id", "name", "cost", "value", "category", "risk"] as const;
 
+function toCsvCell(v: any) {
+  if (v == null) return "";
+  const s = String(v);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+    return `"${s.replaceAll('"', '""')}"`;
+  }
+  return s;
+}
+
+function downloadText(filename: string, text: string) {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Dashboard() {
   // Upload + preview
   const [name, setName] = useState("Demo Dataset");
@@ -244,6 +263,37 @@ export default function Dashboard() {
   const optimalItems: any[] = optimal?.selected_items ?? [];
   const optimalSummary = optimal?.summary ?? null;
 
+  const compareRows = useMemo(() => {
+    const map = new Map<string, any>();
+
+    function upsert(items: any[], key: "baseline" | "optimal") {
+      for (const it of items || []) {
+        const id = String(it.item_id ?? "");
+        if (!id) continue;
+        const prev = map.get(id) ?? { ...it, in_baseline: false, in_optimal: false };
+        map.set(id, { ...prev, ...it, [`in_${key}`]: true });
+      }
+    }
+
+    upsert(baselineItems, "baseline");
+    upsert(optimalItems, "optimal");
+
+    const rows = Array.from(map.values());
+    rows.sort((a, b) => {
+      const ao = a.in_optimal ? 1 : 0;
+      const bo = b.in_optimal ? 1 : 0;
+      if (ao !== bo) return bo - ao;
+      const ab = a.in_baseline ? 1 : 0;
+      const bb = b.in_baseline ? 1 : 0;
+      if (ab !== bb) return bb - ab;
+      return Number(b.value ?? 0) - Number(a.value ?? 0);
+    });
+
+    return rows;
+  }, [baselineItems, optimalItems]);
+
+  const busy = uploading || loadingPreview || creatingRun || executing || runningAll;
+
   return (
     <div style={{ fontFamily: "system-ui", padding: 24, maxWidth: 1100 }}>
       <h1 style={{ marginBottom: 4 }}>DecisionOps</h1>
@@ -403,17 +453,21 @@ export default function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <label>
             Budget
-            <input value={budget} onChange={(e) => setBudget(e.target.value)} style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
+            <input type="number" min={0} step="1" value={budget} onChange={(e) => setBudget(e.target.value)} style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
           </label>
 
           <label>
             Max items (optional)
-            <input value={maxItems} onChange={(e) => setMaxItems(e.target.value)} style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
+            <input type="number" min={1} step="1" value={maxItems} onChange={(e) => setMaxItems(e.target.value)} style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
           </label>
 
           <label>
             Lambda risk (≥ 0)
-            <input value={lambdaRisk} onChange={(e) => setLambdaRisk(e.target.value)} style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
+            <input type="number" min={0} step="0.01" value={lambdaRisk} onChange={(e) => setLambdaRisk(e.target.value)} style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }} />
+            <input type="range" min="0" max="1" step="0.01" value={lambdaRisk} onChange={(e) => setLambdaRisk(e.target.value)} style={{ width: "100%", marginTop: 8 }} />
+            <div style={{ fontSize: 12, color: "#666" }}>
+              Tip: 0 = ignore risk. Higher values penalize risky items more.
+            </div>
           </label>
 
           <label>
@@ -427,6 +481,9 @@ export default function Dashboard() {
           <label>
             Time limit (seconds)
             <input
+              type="number"
+              min={1}
+              step="1"
               value={timeLimitS}
               onChange={(e) => setTimeLimitS(e.target.value)}
               style={{ display: "block", width: "100%", padding: 8, marginTop: 4 }}
@@ -435,7 +492,7 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-          <button onClick={onRunAll} disabled={!datasetId || runningAll} style={{ padding: "8px 12px" }}>
+          <button onClick={onRunAll} disabled={!datasetId || busy} style={{ padding: "8px 12px" }}>
             {runningAll ? "Running..." : "Run All (Greedy + Optimal)"}
           </button>
 
@@ -450,6 +507,12 @@ export default function Dashboard() {
           <button onClick={onExecuteOptimal} disabled={!run?.id || executing} style={{ padding: "8px 12px" }}>
             {executing ? "Executing..." : "Execute Optimal"}
           </button>
+        </div>
+
+        <div style={{ marginTop: 12, display: "flex", gap: 16, flexWrap: "wrap", color: "#333" }}>
+          <div><b>dataset_id:</b> {datasetId || "—"}</div>
+          <div><b>run_id:</b> {run?.id || "—"}</div>
+          <div><b>status:</b> {run?.status || "—"}</div>
         </div>
 
         {run && (
@@ -566,6 +629,90 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: 16, border: "1px solid #ddd", borderRadius: 8, padding: 12 }}>
+        <button
+          onClick={() => {
+            const headers = ["in_baseline", "in_optimal", "item_id", "name", "cost", "value", "category", "risk"];
+            const lines = [
+              headers.join(","),
+              ...compareRows.map((r) =>
+                headers
+                    .map((h) => {
+                    const v =
+                      h === "in_baseline" ? (r.in_baseline ? "1" : "0") :
+                      h === "in_optimal" ? (r.in_optimal ? "1" : "0") :
+                      (r as any)[h];
+                    return toCsvCell(v);
+                  })
+                  .join(",")
+              ),
+            ];
+            downloadText(`decisionops_comparison_${run?.id ?? "run"}.csv`, lines.join("\n"));
+          }}
+          disabled={!compareRows || compareRows.length === 0}
+          style={{ padding: "8px 12px", marginBottom: 10 }}
+        >
+          Download comparison CSV
+        </button>
+
+        <button
+          onClick={async () => {
+            const payload = {
+              dataset_id: run?.dataset_id,
+              run_id: run?.id,
+              status: run?.status,
+              config: run?.config_json,
+              results: run?.result_json,
+              error: run?.error,
+            };
+            await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+            alert("Copied run JSON to clipboard.");
+          }}
+          disabled={!run}
+          style={{ padding: "8px 12px", marginLeft: 10 }}
+        >
+          Copy run JSON
+        </button>
+        
+        <h3 style={{ marginTop: 0 }}>Comparison</h3>
+
+        <div style={{ overflowX: "auto", border: "1px solid #ddd", borderRadius: 8 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["in_baseline", "in_optimal", "item_id", "name", "cost", "value", "category", "risk"].map((c) => (
+                  <th
+                    key={c}
+                    style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd", background: "#fafafa" }}
+                  >
+                  {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {compareRows.map((it, idx) => (
+                <tr key={idx}>
+                  {(["in_baseline", "in_optimal"] as const).map((c) => (
+                    <td key={c} style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                      {it[c] ? "✅" : "—"}
+                    </td>
+                  ))}
+                  {["item_id", "name", "cost", "value", "category", "risk"].map((c) => {
+                    const v = it[c];
+                    return (
+                      <td key={c} style={{ padding: 10, borderBottom: "1px solid #eee", color: v == null ? "#888" : "inherit" }}>
+                        {v == null ? "—" : String(v)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
