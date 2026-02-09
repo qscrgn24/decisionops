@@ -4,6 +4,7 @@ from app.api.db_health import router as db_health_router
 from app.api.datasets import router as datasets_router
 from app.api.runs import router as runs_router
 from app.core.config import settings
+from auth.router import router as auth_router
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -23,6 +24,7 @@ def create_app():
     app.include_router(db_health_router)
     app.include_router(datasets_router)
     app.include_router(runs_router)
+    app.include_router(auth_router)
     return app
 
 
