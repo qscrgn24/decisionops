@@ -1,39 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate} from "react-router-dom";
 import Dashboard from "./pages/dashboard";
 import About from "./pages/about";
 import Navbar from "./components/navbar";
+import Login from "./auth/login";
+import ForgotPassword from "./auth/forgotPassword";
+import RecoverUsername from "./auth/recoverUsername";
+import Signup from "./auth/signup";
 
-function AuthPlaceholder({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <div className="auth-wrap">
-      <div className="auth-card glass-strong">
-        <div className="auth-badge">Coming next</div>
-        <h1 className="auth-title">{title}</h1>
-        <p className="auth-subtitle">{subtitle}</p>
-
-        <div className="auth-actions">
-          <Link className="auth-btn" to="/">
-            Back to Dashboard
-          </Link>
-          <Link className="auth-btn btn-primary" to="/signup">
-            Go to Sign up
-          </Link>
-        </div>
-
-        <div className="auth-note">
-          Side note: after we build these pages, we’ll wire them to the backend
-          (auth endpoints + protected routes).
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function NotFound() {
   return <Navigate to="/" replace />;
@@ -49,26 +22,16 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/about" element={<About />} />
+            <Route path="/auth/login" element={<Login />} />
 
             {/* Temporary placeholders so navbar links work right now */}
-            <Route
-              path="/login"
-              element={
-                <AuthPlaceholder
-                  title="Sign in"
-                  subtitle="We’ll add the full auth UI + form validation next."
-                />
-              }
-            />
-            <Route
-              path="/signup"
-              element={
-                <AuthPlaceholder
-                  title="Create your account"
-                  subtitle="We’ll add the full signup UI + password rules next."
-                />
-              }
-            />
+            <Route path="/auth/signup" element={<Signup />}/>
+            <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+            <Route path="/auth/recover-username" element={<RecoverUsername />} />
+
+            {/* ✅ Backwards-compatible redirects */}
+            <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+            <Route path="/signup" element={<Navigate to="/auth/signup" replace />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
