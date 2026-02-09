@@ -1,68 +1,207 @@
+@import "tailwindcss";
+
+/* ---------- Design Tokens ---------- */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+    color-scheme: dark;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+    --bg0: #070812;
+    --bg1: #0a0b16;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    --text: rgba(255, 255, 255, 0.92);
+    --muted: rgba(255, 255, 255, 0.62);
+
+    --border: rgba(255, 255, 255, 0.10);
+    --border-2: rgba(255, 255, 255, 0.14);
+
+    --card: rgba(255, 255, 255, 0.55);
+    --card-2: rgba(255, 255, 255, 0.55);
+
+    --purple: #7c5cff;
+    --purple-2: #a78bfa;
+
+    --shadow: 0 20px 80px rgba(0, 0, 0, 0.55);
+    --shadow-soft: 0 10x 40px rgba(0, 0, 0, 0.35);
+
+    --radius: 18px;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* ---------- Base Reset ---------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
-a:hover {
-  color: #535bf2;
+
+html,
+body {
+    height: 100%;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    background: linear-gradient(180deg, var(--bg0), var(--bg1));
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* ---------- Background Glow ---------- */
+body::before,
+body::after {
+    content: "";
+    position: fixed;
+    inset: -20%;
+    pointer-events: none;
+    z-index: -1;
 }
 
+body::before {
+    background:
+        radial-gradient(900px 500px at 20% 18%, rgba(124, 92, 255, 0.22), transparent 60%),
+        radial-gradient(700px 420px at 78% 28%, rgba(167, 139, 250, 0.16), transparent 62%),
+        radial-gradient(900px 520px at 50% 90%, rgba(124, 92, 255, 0.12), transparent 70%);
+    filter: blur(18px);
+    opacity: 0.95;
+}
+
+body::after {
+    background: radial-gradient(1200px 700px at 50% 50%, rgba(0, 0, 0, 0.35), transparent 65%);
+    opacity: 0.9;
+}
+
+/* Make the app full width (Vite template centers by default) */
+#root {
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* ---------- Global Element Styling ---------- */
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--purple-2);
+}
+
+::selection {
+    background: rgba(124, 92, 255, 0.35);
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--border);
+}
+
+/* Inputs */
+input,
+select,
+textarea {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    outline: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: rgba(124, 92, 255, 0.45);
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.14);
+}
+
+/* Buttons */
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+button:hover {
+    border-color: rgba(124, 92, 255, 0.45);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ---------- Reusable "glass" helpers ---------- */
+.glass {
+    background: linear-gradient(180deg, var(--card), var(--card-2));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.glass-strong {
+    background: rgba(16, 16, 28, 0.62);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.btn-primary {
+    background: linear-gradient(180deg, rgba(124, 92, 255, 0.95), rgba(94, 64, 220, 0.95));
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(180deg, rgba(140, 110, 255, 0.98), rgba(100, 72, 230, 0.98));
+    border-color: rgba(167, 130, 250, 0.7);
+}
+
+.aboutContact {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.aboutContact h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #ffffff;
+}
+
+.aboutContact p {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 1rem;
+}
+
+.aboutContactLinks {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.aboutContactLink {
+  font-size: 0.95rem;
+  color: #a78bfa;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.aboutContactLink:hover {
+  opacity: 0.8;
 }
