@@ -6,55 +6,56 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.db.deps import get_db
 from app.schemas.runs import RunCreate, RunOut
-from app.services.runs import get_run, update_run
+from app.schemas.execute_all import ExecuteAllIn
+
+from app.models.dataset import Dataset
 from app.models.run import Run
+
+from app.services.runs import create_run, get_run, update_run
 from app.services.greedy_baseline import greedy_select
 from app.services.optimal_solver import solve_optimal
-from app.schemas.execute_all import ExecuteAllIn
+
+from app.auth.session import get_current_user
+from app.auth.models import User
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
 @router.post("", response_model=RunOut)
-def create_run_endpoint(payload: RunCreate, db=Depends(get_db)):
-    import uuid
-
-    run = Run(id=str(uuid.uuid4()), dataset_id=payload.dataset_id, status="created", config_json=payload.config.model_dump(), result_json=None, error=None)
-    db.add(run)
-    db.commit()
-    db.refresh(run)
+def create_run_endpoint(payload: RunCreate, user: User = Depends(get_current_user), db=Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == payload.dataset_id, Dataset.user_id == user.id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    run = create_run(db, user_id=user.id, dataset_id=payload.dataset_id, config_json=payload.config.model_dump())
     return run
 
 
 @router.get("/{run_id}", response_model=RunOut)
-def get_run_endpoint(run_id, db=Depends(get_db)):
-    run = get_run(db, run_id=run_id)
+def get_run_endpoint(run_id, user: User = Depends(get_current_user), db=Depends(get_db)):
+    run = get_run(db, run_id=run_id, user_id=user.id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     return run
 
 
 @router.post("/execute-all", response_model=RunOut)
-def execute_all(payload: ExecuteAllIn, db: Session = Depends(get_db)):
-    import uuid
+def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == payload.dataset_id, Dataset.user_id == user.id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
 
-    # 1) Create Run
-    run = Run(
-        id=str(uuid.uuid4()),
+    run=create_run(
+        db,
+        user_id=user.id,
         dataset_id=payload.dataset_id,
-        status="created",
         config_json={
             "budget": payload.budget,
             "max_items": payload.max_items,
-            "lambda_risk": payload.lambda_risk,
             "objective": payload.objective,
+            "lambda_risk": payload.lambda_risk,
             "time_limit_s": payload.time_limit_s,
         },
-        result_json=None,
-        error=None,
     )
-    db.add(run)
-    db.commit()
-    db.refresh(run)
 
     # 2) Mark Running
     run.status = "running"
@@ -96,10 +97,10 @@ def execute_all(payload: ExecuteAllIn, db: Session = Depends(get_db)):
         # 5) Store results (merge + flag modified)
         run.result_json = {"baseline": baseline, "optimal": optimal}
         flag_modified(run, "result_json")
-
         run.status = "succeeded"
         update_run(db, run)
         return run
+    
     except Exception as e:
         run.status = "failed"
         run.error = str(e)[:500]
