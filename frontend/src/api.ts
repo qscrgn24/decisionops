@@ -34,7 +34,7 @@ export const API = {
         max_items: number | null;
         objective: "value" | "risk_adjusted_value";
         lambda_risk: number;
-        time_limit_seconds?: number;
+        time_limit_s?: number;
     }) {
         const res = await fetch(`/api/runs/execute-all`, {
             method: "POST",

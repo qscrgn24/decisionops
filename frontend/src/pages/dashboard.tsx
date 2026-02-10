@@ -173,7 +173,7 @@ export default function Dashboard() {
         max_items: mi,
         objective,
         lambda_risk: lr,
-        time_limit_seconds: tls,
+        time_limit_s: tls,
       })) as RunResp;
       setRun(resp);
     } catch (e: any) {
