@@ -1,24 +1,75 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
+type AuthResponse = {
+  authenticated: boolean;
+  user: {
+    id: number;
+    email: string;
+    username: string;
+  };
+};
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const nav = useNavigate();
+
+  const [identifier, setIdentifier] = useState(""); // username OR email
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
 
-  const canSubmit = useMemo(
-    () => email.trim().length > 0 && password.length > 0,
-    [email, password]
-  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function onSubmit(e: React.SubmitEvent) {
+  const canSubmit = useMemo(() => {
+    return identifier.trim().length > 0 && password.length > 0 && !loading;
+  }, [identifier, password, loading]);
+
+  async function onSubmit(e: any) {
     e.preventDefault();
-    // Email/password auth will be wired after OAuth
-    alert("Email/password auth will be wired next.");
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // ✅ required for HttpOnly cookie sessions
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          password,
+          // remember is not used by backend yet; kept for UI parity
+        }),
+      });
+
+      if (!res.ok) {
+        const msg = await safeErrorMessage(res);
+        throw new Error(msg);
+      }
+
+      // Cookie is set by backend. Optionally confirm session:
+      const meRes = await fetch("/api/auth/me", {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!meRes.ok) {
+        throw new Error("Logged in, but failed to validate session.");
+      }
+
+      const me: AuthResponse = await meRes.json();
+      if (!me.authenticated) {
+        throw new Error("Session not authenticated.");
+      }
+
+      nav("/", { replace: true });
+    } catch (err: any) {
+      setError(err?.message || "Login failed.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function startOAuth(provider: "google" | "github") {
-    // Vite proxy: /api -> FastAPI backend
     window.location.href = `/api/auth/${provider}/login`;
   }
 
@@ -33,13 +84,13 @@ export default function Login() {
 
         <form onSubmit={onSubmit} className="authForm">
           <label className="authLabel">
-            <span>Email</span>
+            <span>Username or Email</span>
             <input
               className="authInput"
-              placeholder="user@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              placeholder="yourname or user@example.com"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              autoComplete="username"
             />
           </label>
 
@@ -70,11 +121,10 @@ export default function Login() {
             </Link>
           </div>
 
-          <button
-            className="authBtnPrimary btn-primary"
-            disabled={!canSubmit}
-          >
-            Sign In
+          {error ? <div className="authError">{error}</div> : null}
+
+          <button className="authBtnPrimary btn-primary" disabled={!canSubmit}>
+            {loading ? "Signing in..." : "Sign In"}
           </button>
 
           <div className="authHint">
@@ -128,10 +178,7 @@ export default function Login() {
             >
               Blog
             </a>
-            <a
-              className="authLink"
-              href="mailto:singhaniavatsal@gmail.com"
-            >
+            <a className="authLink" href="mailto:singhaniavatsal@gmail.com">
               Char
             </a>
           </div>
@@ -148,6 +195,28 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        .authError{
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 85, 85, 0.25);
+          background: rgba(255, 85, 85, 0.08);
+          color: rgba(255,255,255,0.86);
+          font-size: 13px;
+        }
+      `}</style>
     </div>
   );
+}
+
+async function safeErrorMessage(res: Response): Promise<string> {
+  try {
+    const data = await res.json();
+    if (data?.detail) return String(data.detail);
+    if (data?.message) return String(data.message);
+  } catch {
+    // ignore
+  }
+  return `Login failed (HTTP ${res.status})`;
 }

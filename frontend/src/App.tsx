@@ -6,7 +6,7 @@ import Login from "./auth/login";
 import ForgotPassword from "./auth/forgotPassword";
 import RecoverUsername from "./auth/recoverUsername";
 import Signup from "./auth/signup";
-
+import RequireAuth from "./auth/requireAuth";
 
 function NotFound() {
   return <Navigate to="/" replace />;
@@ -20,11 +20,23 @@ export default function App() {
 
         <main className="do-shell">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/about" element={<About />} />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <Dashboard />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/about"
+              element={
+                <RequireAuth>
+                  <About />
+                </RequireAuth>
+              }
+            />
             <Route path="/auth/login" element={<Login />} />
-
-            {/* Temporary placeholders so navbar links work right now */}
             <Route path="/auth/signup" element={<Signup />}/>
             <Route path="/auth/forgot-password" element={<ForgotPassword />} />
             <Route path="/auth/recover-username" element={<RecoverUsername />} />
