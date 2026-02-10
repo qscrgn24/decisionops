@@ -75,7 +75,7 @@ def set_session_cookie(response: Response, user_id: int):
 
     secure_cookie = settings.ENV.lower() in {"production", "prod", "production_debug"}
 
-    response.set_cooke(
+    response.set_cookie(
         key=COOKIE_NAME,
         value=token,
         max_age=COOKIE_TTL_SECONDS,

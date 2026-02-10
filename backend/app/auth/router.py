@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status, Response, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from app.db.session import get_db
+from app.db.deps import get_db
 from app.auth.models import User
 from app.auth.security import hash_password, verify_password
 
