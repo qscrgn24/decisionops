@@ -13,54 +13,18 @@ export const API = {
         const res = await fetch("/api/datasets/upload", {
             method: "POST",
             body: form,
+            credentials: "include", // include cookies for authentication
         });
         if (!res.ok) throw new Error(`upload HTTP ${res.status}`);
         return res.json();
     },
 
     async previewDataset(datasetId: string, n: number = 10) {
-        const res = await fetch(`/api/datasets/${datasetId}/preview?n=${n}`);
+        const res = await fetch(`/api/datasets/${datasetId}/preview?n=${n}`, {
+            method: "GET",
+            credentials: "include", // include cookies for authentication
+        });
         if (!res.ok) throw new Error(`preview HTTP ${res.status}`);
-        return res.json();
-    },
-
-    async createRun(payload: {
-        dataset_id: string;
-        config: {
-            budget: number;
-            max_items?: number | null;
-            lambda_risk?: number;
-            objective?: "value" | "risk_adjusted_value";
-        };
-    }) {
-        const res = await fetch("/api/runs", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error(`create run HTTP ${res.status}`);
-        return res.json();
-    },
-
-    async getRun(runId: string) {
-        const res = await fetch(`/api/runs/${runId}`);
-        if (!res.ok) throw new Error(`get run HTTP ${res.status}`);
-        return res.json();
-    },
-
-    async executeGreedy(runId: string) {
-        const res = await fetch(`/api/runs/${runId}/execute-greedy`, {
-            method: "POST",
-        });
-        if (!res.ok) throw new Error(`execute greedy HTTP ${res.status}`);
-        return res.json();
-    },
-
-    async executeOptimal(runId: string) {
-        const res = await fetch(`/api/runs/${runId}/execute-optimal`, {
-            method: "POST",
-        });
-        if (!res.ok) throw new Error(`execute optimal HTTP ${res.status}`);
         return res.json();
     },
 
@@ -76,6 +40,7 @@ export const API = {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
+            credentials: "include", // include cookies for authentication
         });
         if (!res.ok) {
             const t = await res.text();
