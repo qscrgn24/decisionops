@@ -7,6 +7,9 @@ from app.schemas.datasets import DatasetOut
 from app.services.datasets import create_dataset
 from app.schemas.dataset_preview import DatasetPreviewOut
 from app.services.dataset_preview import preview_and_validate_csv
+from app.auth.session import get_current_user
+from app.auth.models import User
+from app.models.dataset import Dataset
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
@@ -14,7 +17,8 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 async def upload_dataset(
     name: str = Form(...),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="File is required.")
@@ -29,6 +33,7 @@ async def upload_dataset(
 
     dataset = create_dataset(
         db,
+        user_id=user.id,
         name=name,
         original_filename=file.filename,
         file_bytes=content
@@ -38,7 +43,11 @@ async def upload_dataset(
 
 
 @router.get("/{dataset_id}/preview", response_model=DatasetPreviewOut)
-def preview_dataset(dataset_id, n: int = 20):
+def preview_dataset(dataset_id: str, n: int = 20, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == user.id).first()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+
     file_path = Path("storage/uploads") / f"{dataset_id}.csv"
 
     try:

@@ -7,7 +7,14 @@ from app.models.dataset import Dataset
 
 UPLOAD_DIR = Path("storage/uploads")
 
-def create_dataset(db, *, name, original_filename, file_bytes):
+def create_dataset(
+    db: Session,
+    *,
+    user_id: int,
+    name:str,
+    original_filename: str,
+    file_bytes
+):
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     dataset_id = str(uuid.uuid4())
@@ -20,6 +27,7 @@ def create_dataset(db, *, name, original_filename, file_bytes):
         id=dataset_id,
         name=name,
         original_filename=original_filename,
+        user_id=user_id,
     )
 
     db.add(dataset)
