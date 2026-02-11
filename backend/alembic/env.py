@@ -8,6 +8,8 @@ from alembic import context
 from app.db.base import Base  # Import your Base where models are defined
 from app.models import dataset  # Import all models to ensure they are registered
 from app.models import run
+from app.auth.models import User, OAuthAccount  # Import auth models as well
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
