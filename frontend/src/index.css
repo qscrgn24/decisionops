@@ -205,3 +205,176 @@ button:disabled {
 .aboutContactLink:hover {
   opacity: 0.8;
 }
+
+/* =========================
+   Auth Pages (Login/Signup/Recover)
+   ========================= */
+
+.authWrap {
+  min-height: calc(100vh - 88px);
+  display: grid;
+  place-items: center;
+  padding: 28px 18px 44px;
+}
+
+.authCard {
+  width: 100%;
+  max-width: 460px;
+  padding: 26px 22px;
+}
+
+.authTop {
+  margin-bottom: 16px;
+}
+
+.authBrand {
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.authTitle {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.5px;
+}
+
+.authSubtitle {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.45;
+}
+
+.authForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.authLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.authInput {
+  width: 100%;
+  padding: 12px 12px;
+  font-size: 14px;
+  border-radius: 12px;
+}
+
+.authRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.authCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.70);
+  font-size: 13px;
+  user-select: none;
+}
+
+.authCheck input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--purple);
+}
+
+.authLink {
+  color: rgba(167, 139, 250, 0.92);
+  font-size: 13px;
+}
+
+.authLinkStrong {
+  color: rgba(167, 139, 250, 0.98);
+  font-weight: 600;
+}
+
+.authBtnPrimary {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 12px;
+}
+
+.authHint {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.authDivider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+}
+
+.authDivider span {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.authBtnOAuth {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.oauthIcon {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  font-weight: 700;
+  font-size: 12px;
+  opacity: 0.95;
+}
+
+.authFooter {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.authFooterLinks {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (min-width: 980px) {
+  .authWrap {
+    min-height: 100vh;
+  }
+}
