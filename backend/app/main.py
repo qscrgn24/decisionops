@@ -8,6 +8,9 @@ from app.auth.router import router as auth_router
 
 from fastapi.middleware.cors import CORSMiddleware
 
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
+
 def create_app():
     app = FastAPI(title=settings.APP_NAME)
     app.add_middleware(
