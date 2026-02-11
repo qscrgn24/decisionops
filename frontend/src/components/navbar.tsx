@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 function NavLink({
   to,
@@ -18,9 +18,21 @@ function NavLink({
 
 export default function Navbar() {
   const { pathname } = useLocation();
+  const nav = useNavigate();
 
   const isDashboard = pathname === "/" || pathname.startsWith("/dashboard");
   const isAbout = pathname.startsWith("/about");
+
+  async function onLogout() {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      nav("/auth/login", { replace: true });
+    }
+  }
 
   return (
     <>
@@ -39,7 +51,11 @@ export default function Navbar() {
             </nav>
           </div>
 
-          <div className="topbar__right" />
+          <div className="topbar__right">
+            <button className="topbar__btn" onClick={onLogout}>
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -139,6 +155,31 @@ export default function Navbar() {
 
         .topbar__link.is-active {
           color: rgba(255,255,255,0.88);
+        }
+
+        .topbar__right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex: 0 0 auto;
+        }
+
+        .topbar__btn {
+          appearance: none;
+          border: 1px solid rgba(255,255,255,0.10);
+          background: rgba(255,255,255,0.03);
+          color: rgba(255,255,255,0.80);
+          padding: 9px 12px;
+          border-radius: 12px;
+          font-size: 14px;
+          cursor: pointer;
+          transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+        }
+
+        .topbar__btn:hover {
+          color: rgba(255,255,255,0.92);
+          background: rgba(255,255,255,0.06);
+          border-color: rgba(255,255,255,0.14);
         }
       `}</style>
     </>
