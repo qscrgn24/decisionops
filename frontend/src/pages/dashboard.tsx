@@ -116,6 +116,7 @@ export default function Dashboard() {
 
   const datasetId = useMemo(() => uploadResp?.id ?? "", [uploadResp]);
 
+
   async function onUpload() {
     setError(null);
     setRun(null);
@@ -225,6 +226,53 @@ export default function Dashboard() {
   const canShowResults = run && run.status === "succeeded" && (optimal || baseline);
   const canCompare = canShowResults && baseline && optimal;
   const statusBadge = pickStatusLabel(optimal);
+
+  const canShowPreview = !!preview && !canShowResults;
+
+  const previewCols = useMemo(() => {
+    if (!preview?.columns?.length) return [] as string[];
+    const set = new Set(preview.columns)
+    const ordered = [
+      ...ITEM_COLS.filter((c) => set.has(c)),
+      ...preview.columns.filter((c) => !ITEM_COLS.includes(c as any)),
+    ];
+    return ordered.slice(0, 12);
+  }, [preview]);
+
+  function renderPreview() {
+    if (!preview) return null;
+
+    const rows = preview.rows ?? []
+    const missing = preview.missing_required ?? [];
+    const hasMissing = missing.length > 0;
+
+    return (
+      <div className="panel full">
+        <div className="sumHead" style={{ marginBottom: 10 }}>
+          <div className="sumTitleRow">
+            <div className="sumTitle">Dataset Preview</div>
+            <span className="badge ok">READY</span>
+          </div>
+          <div className="muted" style={{ marginTop: 4 }}>
+            {preview.total_rows.toLocaleString()} rows · {preview.columns.length} columns
+            {preview.risk_scale ? ` · risk scale: ${preview.risk_scale}` : ""}
+          </div>
+        </div>
+
+        {hasMissing && (
+          <div className="hint" style={{ marginBottom: 10 }}>
+            <b>Warnings:</b> {preview.warnings.join(" · ")}
+          </div>
+        )}
+
+        <ScrollTable columns={previewCols} rows={rows} />
+
+        <div className="muted" style={{ marginTop: 10 }}>
+          Upload complete — when you're ready, choose inputs and click <b>Run Optimization</b>.
+        </div>
+      </div>
+    );
+  }
 
   function downloadSelectedCsv(kind: "optimal" | "baseline") {
     const items = kind === "optimal" ? optimalItems : baselineItems;
@@ -493,12 +541,18 @@ export default function Dashboard() {
           <div className="resultsTitle">Results</div>
 
           {!canShowResults && (
-            <div className="panel empty full">
-              <div className="emptyTitle">No results yet</div>
-              <div className="muted">
-                Upload a dataset and click <b>Run Optimization</b>.
-              </div>
-            </div>
+            <>
+              { canShowPreview ? (
+                renderPreview()
+              ) : (
+                <div className="panel empty full">
+                  <div className="emptyTitle">No results yet</div>
+                  <div className="muted">
+                    Upload a dataset and click <b>Run Optimization</b>.
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {canShowResults && (
