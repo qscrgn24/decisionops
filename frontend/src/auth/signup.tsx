@@ -108,7 +108,7 @@ export default function Signup() {
             <span>Username</span>
             <input
               className="authInput"
-              placeholder="yourname"
+              placeholder="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
@@ -120,7 +120,7 @@ export default function Signup() {
             <input
               className="authInput"
               type="password"
-              placeholder="At least 8 characters"
+              placeholder="At least 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
