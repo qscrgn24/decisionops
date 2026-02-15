@@ -69,9 +69,11 @@ export default function Login() {
     }
   }
 
+  {/*
   function startOAuth(provider: "google" | "github") {
     window.location.href = `/api/auth/${provider}/login`;
   }
+  */}
 
   return (
     <div className="authWrap">
@@ -116,9 +118,11 @@ export default function Login() {
               <span>Remember me</span>
             </label>
 
+            {/*
             <Link className="authLink" to="/auth/forgot-password">
               Forgot your password?
             </Link>
+            */}
           </div>
 
           {error ? <div className="authError">{error}</div> : null}
@@ -133,7 +137,8 @@ export default function Login() {
               Sign Up
             </Link>
           </div>
-
+          
+          {/*
           <div className="authDivider">
             <span />
             <em>or</em>
@@ -157,6 +162,7 @@ export default function Login() {
             <span className="oauthIcon github">⌁</span>
             <span>Sign in with GitHub</span>
           </button>
+          */}
         </form>
 
         <div className="authFooter">
