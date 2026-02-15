@@ -89,7 +89,7 @@ export default function Login() {
             <span>Username or Email</span>
             <input
               className="authInput"
-              placeholder="yourname or user@example.com"
+              placeholder="username or user@example.com"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               autoComplete="username"
