@@ -42,7 +42,7 @@ export default function Navbar() {
             <Link to="/" className="topbar__brand">
               <span className="topbar__dot" aria-hidden="true" />
               <span className="topbar__brandText">DecisionOps</span>
-              <span className="topbar__beta">beta</span>
+              <span className="topbar__beta">v0.1.0 • beta</span>
             </Link>
 
             <nav className="topbar__nav" aria-label="Primary">
