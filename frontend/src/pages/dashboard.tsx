@@ -111,6 +111,7 @@ export default function Dashboard() {
 
   // Right-side view mode
   const [showCompare, setShowCompare] = useState(false);
+  const [showAllPreviewCols, setShowAllPreviewCols] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -231,27 +232,38 @@ export default function Dashboard() {
 
   const previewCols = useMemo(() => {
     if (!preview?.columns?.length) return [] as string[];
-    const set = new Set(preview.columns)
+    const set = new Set(preview.columns);
     const ordered = [
       ...ITEM_COLS.filter((c) => set.has(c)),
       ...preview.columns.filter((c) => !ITEM_COLS.includes(c as any)),
     ];
-    return ordered.slice(0, 12);
-  }, [preview]);
+    const limit = showAllPreviewCols ? ordered.length : 8;
+    return ordered.slice(0, limit);
+  }, [preview, showAllPreviewCols]);
 
   function renderPreview() {
     if (!preview) return null;
 
-    const rows = preview.rows ?? []
+    const rows = preview.rows ?? [];
     const missing = preview.missing_required ?? [];
     const hasMissing = missing.length > 0;
-
+    const hasWarnings = (preview.warnings ?? []).length > 0;
+    
     return (
-      <div className="panel full">
+      <div className="panelGlow glowSoft full">
         <div className="sumHead" style={{ marginBottom: 10 }}>
           <div className="sumTitleRow">
             <div className="sumTitle">Dataset Preview</div>
-            <span className="badge ok">READY</span>
+            <div className="sumActions">
+              <button
+                className="btnGhost"
+                type="button"
+                onClick={() => setShowAllPreviewCols((v) => !v)}
+                disabled={!preview.columns?.length}
+              >
+                {showAllPreviewCols ? "Show fewer columns" : "Show all columns"}
+              </button>
+            </div>
           </div>
           <div className="muted" style={{ marginTop: 4 }}>
             {preview.total_rows.toLocaleString()} rows · {preview.columns.length} columns
@@ -259,13 +271,14 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {hasMissing && (
+        {(hasMissing || hasWarnings) && (
           <div className="hint" style={{ marginBottom: 10 }}>
-            <b>Warnings:</b> {preview.warnings.join(" · ")}
+            <b>{hasMissing ? "Missing required:" : "Warnings:"}</b>{" "}
+            {hasMissing ? missing.join(", ") : preview.warnings.join(" · ")}
           </div>
         )}
 
-        <ScrollTable columns={previewCols} rows={rows} />
+        <ScrollTable columns={previewCols} rows={rows} maxHeight={200} />
 
         <div className="muted" style={{ marginTop: 10 }}>
           Upload complete — when you're ready, choose inputs and click <b>Run Optimization</b>.
@@ -327,10 +340,12 @@ export default function Dashboard() {
     columns,
     rows,
     leadingCols,
+    maxHeight,
   }: {
     columns: string[];
     rows: Array<Record<string, any>>;
     leadingCols?: (row: any) => React.ReactNode;
+    maxHeight?: number,
   }) {
     const template = useMemo(() => {
       const w = (c:string) => {
@@ -360,7 +375,7 @@ export default function Dashboard() {
 
     return (
       <div className="tableCard full">
-        <div className="tableScroll">
+        <div className="tableScroll" style={maxHeight ? { maxHeight } : undefined}>
           <div className="tgrid thead" style={{ gridTemplateColumns: template, width: "max-content" }}>
             {leadingCols ? <div className="cell head" /> : null}
             {columns.map((c) => (

@@ -9,17 +9,18 @@ CANON = ["item_id", "name", "cost", "value", "category", "risk"]
 
 # Common real-world aliases
 ALIASES: dict[str, set[str]] = {
-    "item_id": {"item_id", "id", "itemid", "item", "key", "uuid"},
-    "name": {"name", "item_name", "project", "project_name", "title", "initiative"},
-    "cost": {"cost", "price", "expense", "budget", "capex", "opex", "amount", "effort", "hours"},
-    "value": {"value", "benefit", "impact", "impact_score", "roi", "score", "priority", "utility"},
+    "item_id": {"item_id", "id", "itemid", "item", "key", "uuid", "project_code"},
+    "name": {"name", "item_name", "project", "project_name", "title", "initiative", "initiative_name"},
+    "cost": {"cost", "price", "expense", "budget", "capex", "opex", "amount", "effort", "hours", "estimated_cost_usd"},
+    "value": {"value", "benefit", "impact", "impact_score", "roi", "score", "priority", "utility", "expected_annual_value_usd"},
     "category": {"category", "type", "team", "department", "group"},
-    "risk": {"risk", "probability", "uncertainty", "volatility"},
+    "risk": {"risk", "probability", "uncertainty", "volatility", "risk_score"},
 }
 
 def _norm_header(s: str):
     # Lowercase and drop non-alphanumerics to match "Project Name", "project_name", etc.
-    s = s.strip().lower()
+    s = s.replace("\u00A0", " ")  # NBSP -> space
+    s = s.lstrip("\ufeff").strip().lower()  # BOM + surrounding whitespace
     s = re.sub(r"[\s\-]+", "_", s)
     s = re.sub(r"[^a-z0-9_]", "", s)
     return s
@@ -37,7 +38,7 @@ REQUIRED = {"name", "cost", "value"}
 
 
 def resolve_columns(fieldnames: Iterable[str]):
-    original = [c.strip() for c in fieldnames if c is not None]
+    original = [c for c in fieldnames if c is not None]
     normalized = [_norm_header(c) for c in original]
 
     # Build map: normalized -> original

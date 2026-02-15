@@ -52,8 +52,17 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
         if reader.fieldnames is None:
             raise ValueError("CSV file is missing a header row.")
         
-        columns = [c.strip() for c in reader.fieldnames if c is not None]
-        res = resolve_columns(columns)
+        print("RAW HEADERS:", [repr(x) for x in reader.fieldnames])
+        
+        # IMPORTANT:
+        # - Use RAW headers for resolve_columns so row.get(col) matches DictReader keys exactly.
+        # - Keep a stripped version only for display back to the frontend.
+        raw_columns = [c for c in reader.fieldnames if c is not None]
+        columns = [c.strip() for c in raw_columns]
+        res = resolve_columns(raw_columns)
+
+        print("MAPPING:", res.mapping)
+        print("MISSING:", res.missing_required)
 
         # canon -> original column name (or None)
         resolved_columns = {k: res.mapping.get(k) for k in ["item_id", "name", "cost", "value", "category", "risk"]}
@@ -167,14 +176,27 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
                 item_id = f"I{row_idx}"
 
             row_out: dict[str, Any] = {
-                "item_id": item_id,
-                "name": name,
-                "cost": float(cost),
-                "value": float(value),
+                (k.strip() if k is not None else ""): (v.strip() if isinstance(v, str) else v)
+                for k, v in row.items()
+                if k is not None and k.strip() != ""
             }
 
+            if col_item_id:
+                row_out[col_item_id.strip()] = item_id
+            else:
+                row_out["item_id"] = item_id
+
+            if col_name:
+                row_out[col_name.strip()] = name
+
+            if col_cost:
+                row_out[col_cost.strip()] = float(cost)
+
+            if col_value:
+                row_out[col_value.strip()] = float(value)
+
             if has_category and col_category:
-                row_out["category"] = (row.get(col_category) or "").strip()
+                row_out[col_category.strip()] = (row.get(col_category) or "").strip()
 
             if has_risk and col_risk:
                 risk_raw = (row.get(col_risk) or "").strip()
@@ -183,7 +205,7 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
                     rv = 0.0
                 if risk_scale == "0-100":
                     rv = rv / 100.0
-                row_out["risk"] = float(rv)
+                row_out[col_risk.strip()] = float(rv)
 
             rows_out.append(row_out)
 
