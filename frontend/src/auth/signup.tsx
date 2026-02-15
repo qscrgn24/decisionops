@@ -76,10 +76,12 @@ export default function Signup() {
     }
   }
 
+  {/*
   function startOAuth(provider: "google" | "github") {
     // OAuth endpoints will be wired later
     window.location.href = `/api/auth/${provider}/login`;
   }
+  */}
 
   return (
     <div className="authWrap">
@@ -156,6 +158,7 @@ export default function Signup() {
             </Link>
           </div>
 
+          {/*
           <div className="authDivider">
             <span />
             <em>or</em>
@@ -179,6 +182,7 @@ export default function Signup() {
             <span className="oauthIcon github">⌁</span>
             <span>Sign up with GitHub</span>
           </button>
+          */}
         </form>
 
         <div className="authFooter">

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from app.api.health import router as health_router
 from app.api.db_health import router as db_health_router
@@ -11,6 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse
+
 def create_app():
     app = FastAPI(title=settings.APP_NAME)
     app.add_middleware(
@@ -23,11 +28,24 @@ def create_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(health_router)
-    app.include_router(db_health_router)
-    app.include_router(datasets_router)
-    app.include_router(runs_router)
-    app.include_router(auth_router)
+    app.include_router(health_router, prefix="/api")
+    app.include_router(db_health_router, prefix="/api")
+    app.include_router(datasets_router, prefix="/api")
+    app.include_router(runs_router, prefix="/api")
+    app.include_router(auth_router, prefix="/api")
+
+    static_dir = Path(__file__).resolve().parent.parent / "static"
+    if static_dir.exists():
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+        index_html = static_dir / "index.html"
+
+        @app.get("/{full_path:path}", include_in_schema=False)
+        def spa_fallback(full_path: str):
+            if full_path.startswith("/api"):
+                return {"detail": "Not Found"}
+            if index_html.exists():
+                return FileResponse(index_html)
+            return {"detail": "Frontend not built"}
     return app
 
 

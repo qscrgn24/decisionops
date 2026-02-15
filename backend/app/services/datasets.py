@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.models.dataset import Dataset
 
-UPLOAD_DIR = Path("storage/uploads")
+BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOAD_DIR = BASE_DIR / "storage" / "uploads"
 
 def create_dataset(
     db: Session,
