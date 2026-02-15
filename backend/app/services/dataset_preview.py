@@ -52,17 +52,12 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
         if reader.fieldnames is None:
             raise ValueError("CSV file is missing a header row.")
         
-        print("RAW HEADERS:", [repr(x) for x in reader.fieldnames])
-        
         # IMPORTANT:
         # - Use RAW headers for resolve_columns so row.get(col) matches DictReader keys exactly.
         # - Keep a stripped version only for display back to the frontend.
         raw_columns = [c for c in reader.fieldnames if c is not None]
         columns = [c.strip() for c in raw_columns]
         res = resolve_columns(raw_columns)
-
-        print("MAPPING:", res.mapping)
-        print("MISSING:", res.missing_required)
 
         # canon -> original column name (or None)
         resolved_columns = {k: res.mapping.get(k) for k in ["item_id", "name", "cost", "value", "category", "risk"]}
