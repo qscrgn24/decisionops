@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
-from pathlib import Path
 
 from app.db.deps import get_db
 from app.schemas.datasets import DatasetOut
@@ -48,12 +47,10 @@ def preview_dataset(dataset_id: str, n: int = 20, user: User = Depends(get_curre
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found.")
 
-    file_path = Path("storage/uploads") / f"{dataset_id}.csv"
-
     try:
-        res = preview_and_validate_csv(file_path, n=n)
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Dataset file not found.")
+        res = preview_and_validate_csv(dataset.file_bytes, n=n)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to preview dataset.")
     
     return DatasetPreviewOut(
         dataset_id=dataset_id,

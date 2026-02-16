@@ -1,6 +1,6 @@
 import csv
+import io
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from app.services.csv_normalize import resolve_columns
@@ -32,14 +32,31 @@ def _dedupe(warnings: list[str]):
     return deduped
 
 
-def preview_and_validate_csv(file_path, *, n: int = 20):
+def _open_csv_text_stream(file_bytes: bytes) -> io.StringIO:
+    """
+    Convert raw bytes (from DB) into a text stream for csv.DictReader.
+    We default to utf-8, and fall back to utf-8-sig to handle BOM.
+    """
+    if not isinstance(file_bytes, (bytes, bytearray)):
+        raise TypeError("preview_and_validate_csv expected raw CSV bytes.")
+
+    if len(file_bytes) == 0:
+        raise ValueError("Uploaded file is empty.")
+
+    try:
+        text = file_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        # Common BOM / encoding edge cases; utf-8-sig can help with BOM
+        text = file_bytes.decode("utf-8-sig", errors="replace")
+
+    return io.StringIO(text)
+
+
+def preview_and_validate_csv(file_bytes: bytes, *, n: int = 20):
     if n < 1:
         n = 1
     if n > 200:
         n = 200   # prevent huge responnses
-
-    if not file_path.exists():
-        raise FileNotFoundError(f"CSV file not found: {file_path}")
     
     warnings: list[str] = []
 
@@ -47,39 +64,39 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
     total_rows = 0
     max_risk = None # type: float | None
 
-    with file_path.open("r", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        if reader.fieldnames is None:
-            raise ValueError("CSV file is missing a header row.")
-        
-        # IMPORTANT:
-        # - Use RAW headers for resolve_columns so row.get(col) matches DictReader keys exactly.
-        # - Keep a stripped version only for display back to the frontend.
-        raw_columns = [c for c in reader.fieldnames if c is not None]
-        columns = [c.strip() for c in raw_columns]
-        res = resolve_columns(raw_columns)
+    f1 = _open_csv_text_stream(file_bytes)
+    reader = csv.DictReader(f1)
+    if reader.fieldnames is None:
+        raise ValueError("CSV file is missing a header row.")
+    
+    # IMPORTANT:
+    # - Use RAW headers for resolve_columns so row.get(col) matches DictReader keys exactly.
+    # - Keep a stripped version only for display back to the frontend.
+    raw_columns = [c for c in reader.fieldnames if c is not None]
+    columns = [c.strip() for c in raw_columns]
+    res = resolve_columns(raw_columns)
 
-        # canon -> original column name (or None)
-        resolved_columns = {k: res.mapping.get(k) for k in ["item_id", "name", "cost", "value", "category", "risk"]}
+    # canon -> original column name (or None)
+    resolved_columns = {k: res.mapping.get(k) for k in ["item_id", "name", "cost", "value", "category", "risk"]}
 
-        has_category = resolved_columns["category"] is not None
-        has_risk = resolved_columns["risk"] is not None
+    has_category = resolved_columns["category"] is not None
+    has_risk = resolved_columns["risk"] is not None
 
-        risk_col = resolved_columns["risk"]
+    risk_col = resolved_columns["risk"]
 
-        for row in reader:
-            total_rows += 1
-            if has_risk and risk_col:
-                risk_raw = (row.get(risk_col) or "").strip()
-                if risk_raw == "":
-                    continue
-                risk_value = parse_float(risk_raw, default=None)
-                if risk_value is None:
-                    # Don't hard-fail preview; warn and ignore for scale detection
-                    warnings.append(f"Some rows have non-numeric risk values; treating missing/invalid risk as 0.")
-                    continue
-                if max_risk is None or risk_value > max_risk:
-                    max_risk = risk_value
+    for row in reader:
+        total_rows += 1
+        if has_risk and risk_col:
+            risk_raw = (row.get(risk_col) or "").strip()
+            if risk_raw == "":
+                continue
+            risk_value = parse_float(risk_raw, default=None)
+            if risk_value is None:
+                # Don't hard-fail preview; warn and ignore for scale detection
+                warnings.append(f"Some rows have non-numeric risk values; treating missing/invalid risk as 0.")
+                continue
+            if max_risk is None or risk_value > max_risk:
+                max_risk = risk_value
 
     if total_rows == 0:
         return PreviewResult(
@@ -134,75 +151,75 @@ def preview_and_validate_csv(file_path, *, n: int = 20):
     col_category = resolved_columns["category"]
     col_risk = resolved_columns["risk"]
 
-    with file_path.open("r", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
+    f2 = _open_csv_text_stream(file_bytes)
+    reader = csv.DictReader(f2)
 
-        for row_idx, row in enumerate(reader, start=1):
-            if row_idx > n:
-                break
+    for row_idx, row in enumerate(reader, start=1):
+        if row_idx > n:
+            break
 
-            name = (row.get(col_name) or "").strip() if col_name else ""
-            if name == "":
-                # skip empty rows
-                continue
+        name = (row.get(col_name) or "").strip() if col_name else ""
+        if name == "":
+            # skip empty rows
+            continue
 
-            cost_raw = (row.get(col_cost) or "").strip() if col_cost else ""
-            value_raw = (row.get(col_value) or "").strip() if col_value else ""
+        cost_raw = (row.get(col_cost) or "").strip() if col_cost else ""
+        value_raw = (row.get(col_value) or "").strip() if col_value else ""
 
-            cost = parse_float(cost_raw, default=None)
-            value = parse_float(value_raw, default=None)
+        cost = parse_float(cost_raw, default=None)
+        value = parse_float(value_raw, default=None)
 
-            if cost is None or value is None:
-                warnings.append("Some rows have invalid cost/value; preview may be incomplete.")
-                continue
+        if cost is None or value is None:
+            warnings.append("Some rows have invalid cost/value; preview may be incomplete.")
+            continue
 
-            if cost < 0:
-                warnings.append("Some rows have negative cost; preview may be incomplete.")
-                continue
-            if value < 0:
-                warnings.append("Some rows have negative value; preview may be incomplete.")
-                continue
+        if cost < 0:
+            warnings.append("Some rows have negative cost; preview may be incomplete.")
+            continue
+        if value < 0:
+            warnings.append("Some rows have negative value; preview may be incomplete.")
+            continue
 
-            # item_id is optional; auto-generate if absent or empty
-            item_id = ""
-            if col_item_id:
-                item_id = (row.get(col_item_id) or "").strip()
-            if item_id == "":
-                item_id = f"I{row_idx}"
+        # item_id is optional; auto-generate if absent or empty
+        item_id = ""
+        if col_item_id:
+            item_id = (row.get(col_item_id) or "").strip()
+        if item_id == "":
+            item_id = f"I{row_idx}"
 
-            row_out: dict[str, Any] = {
-                (k.strip() if k is not None else ""): (v.strip() if isinstance(v, str) else v)
-                for k, v in row.items()
-                if k is not None and k.strip() != ""
-            }
+        row_out: dict[str, Any] = {
+            (k.strip() if k is not None else ""): (v.strip() if isinstance(v, str) else v)
+            for k, v in row.items()
+            if k is not None and k.strip() != ""
+        }
 
-            if col_item_id:
-                row_out[col_item_id.strip()] = item_id
-            else:
-                row_out["item_id"] = item_id
+        if col_item_id:
+            row_out[col_item_id.strip()] = item_id
+        else:
+            row_out["item_id"] = item_id
 
-            if col_name:
-                row_out[col_name.strip()] = name
+        if col_name:
+            row_out[col_name.strip()] = name
 
-            if col_cost:
-                row_out[col_cost.strip()] = float(cost)
+        if col_cost:
+            row_out[col_cost.strip()] = float(cost)
 
-            if col_value:
-                row_out[col_value.strip()] = float(value)
+        if col_value:
+            row_out[col_value.strip()] = float(value)
 
-            if has_category and col_category:
-                row_out[col_category.strip()] = (row.get(col_category) or "").strip()
+        if has_category and col_category:
+            row_out[col_category.strip()] = (row.get(col_category) or "").strip()
 
-            if has_risk and col_risk:
-                risk_raw = (row.get(col_risk) or "").strip()
-                rv = parse_float(risk_raw, default=0.0)
-                if rv is None:
-                    rv = 0.0
-                if risk_scale == "0-100":
-                    rv = rv / 100.0
-                row_out[col_risk.strip()] = float(rv)
+        if has_risk and col_risk:
+            risk_raw = (row.get(col_risk) or "").strip()
+            rv = parse_float(risk_raw, default=0.0)
+            if rv is None:
+                rv = 0.0
+            if risk_scale == "0-100":
+                rv = rv / 100.0
+            row_out[col_risk.strip()] = float(rv)
 
-            rows_out.append(row_out)
+        rows_out.append(row_out)
 
     warnings = list(res.warnings) + warnings
 
