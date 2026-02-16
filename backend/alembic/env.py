@@ -76,7 +76,6 @@ def run_migrations_online() -> None:
     """
     db_url = os.getenv("DATABASE_URL")
     url = _get_database_url()
-    print("ALEMBIC USING URL:", url)
     if db_url:
         connectable = create_engine(url, poolclass=pool.NullPool)
     else:
