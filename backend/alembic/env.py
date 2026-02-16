@@ -76,7 +76,7 @@ def run_migrations_online() -> None:
     """
     db_url = os.getenv("DATABASE_URL")
     if db_url:
-        connectable = create_engine(_get_database_url, poolclass=pool.NullPool)
+        connectable = create_engine(_get_database_url(), poolclass=pool.NullPool)
     else:
         connectable = engine_from_config(
             config.get_section(config.config_ini_section, {}),
