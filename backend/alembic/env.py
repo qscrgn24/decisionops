@@ -38,8 +38,6 @@ def _get_database_url():
     db_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
-    if db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
     return db_url
 
 
