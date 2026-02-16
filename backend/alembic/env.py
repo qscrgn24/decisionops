@@ -38,6 +38,8 @@ def _get_database_url():
     db_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
     return db_url
 
 
@@ -73,8 +75,10 @@ def run_migrations_online() -> None:
 
     """
     db_url = os.getenv("DATABASE_URL")
+    url = _get_database_url()
+    print("ALEMBIC USING URL:", url)
     if db_url:
-        connectable = create_engine(_get_database_url(), poolclass=pool.NullPool)
+        connectable = create_engine(url, poolclass=pool.NullPool)
     else:
         connectable = engine_from_config(
             config.get_section(config.config_ini_section, {}),
