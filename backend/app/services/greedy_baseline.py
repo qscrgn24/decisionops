@@ -1,77 +1,89 @@
 from __future__ import annotations
 
 import csv
-from pathlib import Path
+import io
 from typing import Any, Tuple
 
 from app.services.csv_normalize import resolve_columns
 from app.services.parse_numbers import parse_float
 
 
-def _iter_items(file_path: Path) -> Tuple[list[str], list[dict[str, Any]], float]:
+def _bytes_to_text_strem(file_bytes: bytes):
+    if not isinstance(file_bytes, (bytes, bytearray)):
+        raise TypeError("Expected raw CSV bytes.")
+    if len(file_bytes) == 0:
+        raise ValueError("CSV is empty.")
+    try:
+        text = file_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        text = file_bytes.decode("utf-8-sig", errors="replace")
+    return io.StringIO(text)
+
+
+def _iter_items(file_bytes: bytes) -> Tuple[list[str], list[dict[str, Any]], float]:
     """
     Loads CSV and returns:
       - columns: original CSV columns
       - items: canonicalized dicts with keys: item_id, name, cost, value, category?, risk?
       - risk_scale: 1.0 or 100.0 (used if original looked like percentages)
     """
-    with open(file_path, "r", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        columns = reader.fieldnames or []
-        res = resolve_columns(columns)
+    f = _bytes_to_text_strem(file_bytes)
+    reader = csv.DictReader(f)
+    columns = reader.fieldnames or []
+    res = resolve_columns(columns)
 
-        # Require that name/cost/value can be resolved (via aliases)
-        if res.missing_required:
-            raise ValueError(f"Missing required columns (after aliasing): {res.missing_required}")
+    # Require that name/cost/value can be resolved (via aliases)
+    if res.missing_required:
+        raise ValueError(f"Missing required columns (after aliasing): {res.missing_required}")
 
-        col_item_id = res.mapping.get("item_id")  # optional
-        col_name = res.mapping["name"]
-        col_cost = res.mapping["cost"]
-        col_value = res.mapping["value"]
-        col_category = res.mapping.get("category")
-        col_risk = res.mapping.get("risk")
+    col_item_id = res.mapping.get("item_id")  # optional
+    col_name = res.mapping["name"]
+    col_cost = res.mapping["cost"]
+    col_value = res.mapping["value"]
+    col_category = res.mapping.get("category")
+    col_risk = res.mapping.get("risk")
 
-        raw_items: list[dict[str, Any]] = []
-        risks_raw: list[float] = []
+    raw_items: list[dict[str, Any]] = []
+    risks_raw: list[float] = []
 
-        for idx, row in enumerate(reader, start=1):
-            name = (row.get(col_name) or "").strip()
-            if not name:
-                # skip empty rows
-                continue
+    for idx, row in enumerate(reader, start=1):
+        name = (row.get(col_name) or "").strip()
+        if not name:
+            # skip empty rows
+            continue
 
-            cost = parse_float(row.get(col_cost), default=None)
-            value = parse_float(row.get(col_value), default=None)
+        cost = parse_float(row.get(col_cost), default=None)
+        value = parse_float(row.get(col_value), default=None)
 
-            if cost is None or value is None:
-                raise ValueError(f"Row {idx}: cost/value not parseable")
+        if cost is None or value is None:
+            raise ValueError(f"Row {idx}: cost/value not parseable")
 
-            if cost <= 0:
-                raise ValueError(f"Row {idx}: cost must be > 0")
+        if cost <= 0:
+            raise ValueError(f"Row {idx}: cost must be > 0")
 
-            item_id = (row.get(col_item_id) or "").strip() if col_item_id else ""
-            if not item_id:
-                item_id = f"I{idx}"
+        item_id = (row.get(col_item_id) or "").strip() if col_item_id else ""
+        if not item_id:
+            item_id = f"I{idx}"
 
-            item: dict[str, Any] = {
-                "item_id": item_id,
-                "name": name,
-                "cost": float(cost),
-                "value": float(value),
-            }
+        item: dict[str, Any] = {
+            "item_id": item_id,
+            "name": name,
+            "cost": float(cost),
+            "value": float(value),
+        }
 
-            if col_category:
-                cat = (row.get(col_category) or "").strip()
-                if cat:
-                    item["category"] = cat
+        if col_category:
+            cat = (row.get(col_category) or "").strip()
+            if cat:
+                item["category"] = cat
 
-            if col_risk:
-                r = parse_float(row.get(col_risk), default=None)
-                if r is not None:
-                    item["risk"] = float(r)
-                    risks_raw.append(float(r))
+        if col_risk:
+            r = parse_float(row.get(col_risk), default=None)
+            if r is not None:
+                item["risk"] = float(r)
+                risks_raw.append(float(r))
 
-            raw_items.append(item)
+        raw_items.append(item)
 
     # Risk normalization: if it looks like 0..100, map to 0..1
     risk_scale = 1.0
@@ -86,7 +98,7 @@ def _iter_items(file_path: Path) -> Tuple[list[str], list[dict[str, Any]], float
     return columns, raw_items, risk_scale
 
 
-def greedy_select(*, file_path: Path, budget: float, max_items: int | None, objective: str, lambda_risk: float):
+def greedy_select(*, file_bytes: bytes, budget: float, max_items: int | None, objective: str, lambda_risk: float):
     """
     Greedy baseline:
       - Score per cost descending
@@ -94,7 +106,7 @@ def greedy_select(*, file_path: Path, budget: float, max_items: int | None, obje
       - Optional max_items cap
     """
     
-    columns, items, risk_scale = _iter_items(file_path)
+    columns, items, risk_scale = _iter_items(file_bytes)
 
     has_risk = any("risk" in it for it in items)
 

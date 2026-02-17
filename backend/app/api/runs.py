@@ -62,8 +62,6 @@ def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), d
     run.error = None
     update_run(db, run)
 
-    file_path = Path("storage/uploads") / f"{run.dataset_id}.csv"
-
     try:
         cfg = run.config_json
         budget = float(cfg["budget"])
@@ -75,9 +73,11 @@ def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), d
         lambda_risk = float(cfg.get("lambda_risk", 0.0))
         time_limit_s = float(cfg.get("time_limit_s", 5.0))
 
+        file_bytes = dataset.file_bytes
+
         # 3) Greedy baseline
         baseline = greedy_select(
-            file_path=file_path,
+            file_bytes=file_bytes,
             budget=budget,
             max_items=max_items,
             objective=objective,
@@ -86,7 +86,7 @@ def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), d
 
         # 4) Optimal solver
         optimal = solve_optimal(
-            file_path=file_path,
+            file_bytes=file_bytes,
             budget=budget,
             max_items=max_items,
             objective=objective,

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
 from ortools.sat.python import cp_model
 
-from app.services.greedy_baseline import _iter_items
+from app.services.greedy_baseline import _iter_items, _bytes_to_text_strem
 
 
 def _scale_to_int(x: float, scale: int):
@@ -14,7 +11,7 @@ def _scale_to_int(x: float, scale: int):
 
 def solve_optimal(
     *,
-    file_path: Path,
+    file_bytes: bytes,
     budget: float,
     max_items: int | None,
     objective: str,
@@ -29,7 +26,7 @@ def solve_optimal(
     Exact solver using CP-SAT. Handles float inputs by scaling to integers.
     Returns selected items + objective value and totals.
     """
-    columns, items, risk_scale = _iter_items(file_path)
+    columns, items, risk_scale = _iter_items(file_bytes)
 
     if budget <= 0:
         raise ValueError("budget must be > 0")
