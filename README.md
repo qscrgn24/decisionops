@@ -112,6 +112,7 @@ cd backend
 pip install -r requirements.txt
 alembic upgrade head
 uvicorn app.main:app --reload
+```
 
 ### Frontend
 
@@ -119,6 +120,7 @@ uvicorn app.main:app --reload
 cd frontend
 npm install
 num run dev
+```
 
 ---
 
