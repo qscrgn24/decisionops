@@ -105,6 +105,14 @@ Planned:
 
 ## 💻 Local Development
 
+### 🔐 Environment Variables
+
+Create a `.env` file in the backend directory using `.env.example` as a template:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
 ### Backend
 
 ```bash
