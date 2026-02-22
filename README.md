@@ -1,52 +1,148 @@
 # DecisionOps
 
-DecisionOps is a small full-stack web app for running **budgeted selection / portfolio-style optimization** on a CSV dataset.  
-It supports uploading a dataset, previewing/validating it, creating a run with configuration, executing a baseline optimizer, and viewing results.
+DecisionOps is a full-stack optimization web application that allows users to upload structured datasets and compute optimal selections under budget and risk constraints.
 
-## Features (MVP)
-- Upload a CSV dataset (`/datasets/upload`)
-- Preview rows + validation warnings (`/datasets/{id}/preview`)
-- Create a run with config (`/runs`)
-- Execute a baseline optimizer (greedy) and persist results (`/runs/{id}/execute-greedy`)
-- View run status + results (`/runs/{id}`)
-- Frontend workflow: Upload → Preview → Run → Execute → Results
-
-## Tech stack
-- **Backend:** FastAPI + SQLAlchemy + Alembic
-- **Database:** Postgres (Docker)
-- **Frontend:** React + TypeScript (Vite)
-- **Dev:** WSL2 recommended
-
-## Status
-
-- MVP complete
+**Live Demo:** https://decisionops.onrender.com  
+**Version:** v0.1.0-beta  
 
 ---
 
-## CSV format
+## 🚀 Overview
 
-### Required columns
-- `item_id` (string, unique-ish)
-- `name` (string)
-- `cost` (number > 0)
-- `value` (number >= 0)
+DecisionOps allows users to:
 
-### Optional columns
-- `category` (string)
-- `risk` (number in **[0,1]** or **[0,100]**; auto-normalized to 0–1)
+- Upload CSV datasets
+- Automatically resolve column aliases (flexible header handling)
+- Preview and validate dataset integrity
+- Run optimization under:
+  - Budget constraints
+  - Risk penalty (λ)
+  - Optional item limits
+- Compare:
+  - Greedy baseline
+  - Exact optimal solution
+- View selection results and objective comparison
 
-### Example CSV
+The application demonstrates full-stack development, database design, deployment, and optimization logic integration.
 
-```csv
-item_id,name,cost,value,category,risk
-A1,Upgrade API servers,120,300,infra,20
-A2,Refactor legacy code,80,180,infra,10
-A3,Add caching layer,60,150,infra,5
-B1,Google Ads campaign,100,220,marketing,40
-B2,SEO optimization,50,130,marketing,15
-B3,Email outreach automation,30,90,marketing,8
-C1,New onboarding flow,90,260,product,12
-C2,Mobile UI polish,70,170,product,6
-C3,A/B testing framework,40,110,product,4
-D1,Customer support chatbot,110,240,ops,25
-D2,Log monitoring upgrade,55,140,ops,9
+---
+
+## 🛠 Tech Stack
+
+### Backend
+- FastAPI
+- SQLAlchemy (2.0 style ORM)
+- Alembic (migrations)
+- PostgreSQL
+- JWT Authentication
+- Argon2 password hashing
+
+### Frontend
+- React
+- TypeScript
+- Axios
+- TailwindCSS
+
+### Deployment
+- Render (Web Service + PostgreSQL)
+- Production migrations via Alembic
+
+---
+
+## 🏗 Architecture
+
+### Dataset Storage (v0.1 update)
+
+Datasets are stored directly in PostgreSQL as binary (`BYTEA`) data rather than filesystem storage.
+
+This design:
+- Removes dependency on ephemeral container storage
+- Makes deployment platform-agnostic
+- Simplifies horizontal scaling
+
+Preview and optimization both operate directly on stored binary data.
+
+---
+
+## 🧠 Optimization Model
+
+Objective:
+
+Maximize:
+
+value − λ × risk
+
+Subject to:
+
+- Total cost ≤ budget
+- Optional item count constraint
+
+Two solvers implemented:
+
+- Greedy baseline heuristic
+- Exact optimal solver (combinatorial search)
+
+Results include:
+- Selected items
+- Total cost
+- Total value
+- Risk-adjusted objective
+- Baseline vs optimal comparison
+
+---
+
+## 🔐 Authentication
+
+- Email/password login
+- JWT-based session handling
+- Password hashing with Argon2
+
+Planned:
+- Password reset
+- OAuth integration
+
+---
+
+## 💻 Local Development
+
+### Backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+num run dev
+
+---
+
+## 🛣 Upcoming Features
+
+- Password Recovery Flow
+- OAuth Login Providers
+- Substring-based header alias
+- Manual column mapping fallback UI
+- Performance optimization for large datasets
+- Run history
+- Dashboard analytics
+
+---
+
+## 🤝 Contributing
+
+This project is currently maintained by the author.
+
+Future improvements and feature ideas are welcome.
+
+---
+
+## 👤 Author
+
+Vatsal Singhania
+Email: singhaniavatsal@gmail.com
