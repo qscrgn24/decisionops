@@ -147,4 +147,5 @@ Future improvements and feature ideas are welcome.
 ## 👤 Author
 
 Vatsal Singhania
+
 Email: singhaniavatsal@gmail.com
