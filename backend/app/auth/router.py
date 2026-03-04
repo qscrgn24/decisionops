@@ -1,28 +1,27 @@
+# ruff: noqa: B008
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status, Response, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
-from app.db.deps import get_db
 from app.auth.models import User
+from app.auth.schemas import AuthResponse, LoginRequest, SignUpRequest, UserOut
 from app.auth.security import hash_password, verify_password
-
-from app.auth.schemas import SignUpRequest, LoginRequest, AuthResponse
-from app.auth.session import set_session_cookie, clear_session_cookie, get_current_user
-
+from app.auth.session import clear_session_cookie, get_current_user, set_session_cookie
+from app.db.deps import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-def _normalize_username(u: str):
+def _normalize_username(u: str) -> str:
     return u.strip()
 
-def _normalize_email(e: str):
+def _normalize_email(e: str) -> str:
     return e.strip().lower()
 
 
 @router.post("/signup", response_model=AuthResponse)
-def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get_db)):
+def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
     email = _normalize_email(payload.email)
     username = _normalize_username(payload.username)
 
@@ -39,7 +38,7 @@ def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get
     try:
         pw_hash = hash_password(payload.password)
     except ValueError as ve:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve)) from ve
 
     # Create new user
     new_user = User(email=email, username=username, password_hash=pw_hash)
@@ -49,11 +48,11 @@ def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get
 
     set_session_cookie(response, new_user.id)
 
-    return AuthResponse(user=new_user)
+    return AuthResponse(user=UserOut.model_validate(new_user))
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
     identifier = payload.identifier.strip()
     identifier_email = identifier.lower() if "@" in identifier else None
 
@@ -67,15 +66,15 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
 
     set_session_cookie(response, user.id)
 
-    return AuthResponse(user=user)
+    return AuthResponse(user=UserOut.model_validate(user))
 
 
 @router.get("/me", response_model=AuthResponse)
-def me(user: User = Depends(get_current_user)):
-    return AuthResponse(user=user)
+def me(user: User = Depends(get_current_user)) -> AuthResponse:
+    return AuthResponse(user=UserOut.model_validate(user))
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(response: Response) -> dict[str, bool]:
     clear_session_cookie(response)
     return {"ok": True}

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import Any
+
 from ortools.sat.python import cp_model
 
-from app.services.greedy_baseline import _iter_items, _bytes_to_text_strem
+from app.services.greedy_baseline import _iter_items
 
 
-def _scale_to_int(x: float, scale: int):
+def _scale_to_int(x: float, scale: int) -> int:
     return int(round(x * scale))
                
 
@@ -21,7 +23,7 @@ def solve_optimal(
     value_scale: int = 100,
     risk_scale_int: int = 1000,
     time_limit_s: float = 5.0
-):
+) -> dict[str, Any]:
     """
     Exact solver using CP-SAT. Handles float inputs by scaling to integers.
     Returns selected items + objective value and totals.

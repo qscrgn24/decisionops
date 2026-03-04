@@ -5,7 +5,7 @@ import re
 _CURRENCY = re.compile(r"[₹$€£,]") # strip commas and common currenycy symbols
 
 
-def parse_float(x, *, default: float | None =  None):
+def parse_float(x: float | int | str | None, *, default: float | None = None) -> float | None:
     if x is None:
         return default
     if isinstance(x, (int, float)):

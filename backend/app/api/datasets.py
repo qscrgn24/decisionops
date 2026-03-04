@@ -1,14 +1,15 @@
+# ruff: noqa: B008
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.db.deps import get_db
-from app.schemas.datasets import DatasetOut
-from app.services.datasets import create_dataset
-from app.schemas.dataset_preview import DatasetPreviewOut
-from app.services.dataset_preview import preview_and_validate_csv
-from app.auth.session import get_current_user
 from app.auth.models import User
+from app.auth.session import get_current_user
+from app.db.deps import get_db
 from app.models.dataset import Dataset
+from app.schemas.dataset_preview import DatasetPreviewOut
+from app.schemas.datasets import DatasetOut
+from app.services.dataset_preview import preview_and_validate_csv
+from app.services.datasets import create_dataset
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
@@ -18,7 +19,7 @@ async def upload_dataset(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> Dataset:
     if not file.filename:
         raise HTTPException(status_code=400, detail="File is required.")
     
@@ -42,15 +43,15 @@ async def upload_dataset(
 
 
 @router.get("/{dataset_id}/preview", response_model=DatasetPreviewOut)
-def preview_dataset(dataset_id: str, n: int = 20, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def preview_dataset(dataset_id: str, n: int = 20, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> DatasetPreviewOut:
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == user.id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found.")
 
     try:
         res = preview_and_validate_csv(dataset.file_bytes, n=n)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Failed to preview dataset.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Failed to preview dataset.") from e
     
     return DatasetPreviewOut(
         dataset_id=dataset_id,

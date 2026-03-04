@@ -1,10 +1,10 @@
 import os
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # ---- IMPORTANT ----
@@ -33,10 +33,10 @@ def TestingSessionLocal(engine):
 
 @pytest.fixture(autouse=True)
 def create_test_tables(engine):
-    from app.db.base import Base
     import app.auth.models  # noqa: F401
     import app.models.dataset  # noqa: F401
     import app.models.run  # noqa: F401
+    from app.db.base import Base
 
     Base.metadata.create_all(bind=engine)
     yield
@@ -54,8 +54,8 @@ def db(TestingSessionLocal) -> Generator[Session, None, None]:
 
 @pytest.fixture()
 def client(db: Session) -> Generator[TestClient, None, None]:
-    from app.main import create_app
     from app.db.deps import get_db
+    from app.main import create_app
 
     app = create_app()
 

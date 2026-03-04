@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -23,8 +24,8 @@ class RunOut(BaseModel):
     dataset_id: str
     status: str
 
-    config_json: dict | None
-    result_json: dict | None
+    config_json: dict[str, Any] | None
+    result_json: dict[str, Any] | None
     error: str | None
 
     created_at: datetime

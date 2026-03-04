@@ -1,27 +1,23 @@
-from pathlib import Path
-
+# ruff: noqa: B008
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
+from app.auth.models import User
+from app.auth.session import get_current_user
 from app.db.deps import get_db
-from app.schemas.runs import RunCreate, RunOut
-from app.schemas.execute_all import ExecuteAllIn
-
 from app.models.dataset import Dataset
 from app.models.run import Run
-
-from app.services.runs import create_run, get_run, update_run
+from app.schemas.execute_all import ExecuteAllIn
+from app.schemas.runs import RunCreate, RunOut
 from app.services.greedy_baseline import greedy_select
 from app.services.optimal_solver import solve_optimal
-
-from app.auth.session import get_current_user
-from app.auth.models import User
+from app.services.runs import create_run, get_run, update_run
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
 @router.post("", response_model=RunOut)
-def create_run_endpoint(payload: RunCreate, user: User = Depends(get_current_user), db=Depends(get_db)):
+def create_run_endpoint(payload: RunCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Run:
     dataset = db.query(Dataset).filter(Dataset.id == payload.dataset_id, Dataset.user_id == user.id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -31,7 +27,7 @@ def create_run_endpoint(payload: RunCreate, user: User = Depends(get_current_use
 
 
 @router.get("/{run_id}", response_model=RunOut)
-def get_run_endpoint(run_id, user: User = Depends(get_current_user), db=Depends(get_db)):
+def get_run_endpoint(run_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Run:
     run = get_run(db, run_id=run_id, user_id=user.id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -39,7 +35,7 @@ def get_run_endpoint(run_id, user: User = Depends(get_current_user), db=Depends(
 
 
 @router.post("/execute-all", response_model=RunOut)
-def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Run:
     dataset = db.query(Dataset).filter(Dataset.id == payload.dataset_id, Dataset.user_id == user.id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")

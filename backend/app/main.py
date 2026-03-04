@@ -1,22 +1,22 @@
 from pathlib import Path
 
-from fastapi import FastAPI
-from app.api.health import router as health_router
-from app.api.db_health import router as db_health_router
-from app.api.datasets import router as datasets_router
-from app.api.runs import router as runs_router
-from app.core.config import settings
-from app.auth.router import router as auth_router
-
-from fastapi.middleware.cors import CORSMiddleware
-
 from dotenv import load_dotenv
-load_dotenv()  # Load environment variables from .env file
-
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 
-def create_app():
+from app.api.datasets import router as datasets_router
+from app.api.db_health import router as db_health_router
+from app.api.health import router as health_router
+from app.api.runs import router as runs_router
+from app.auth.router import router as auth_router
+from app.core.config import settings
+
+load_dotenv()  # Load environment variables from .env file
+
+
+def create_app() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME)
     app.add_middleware(
         CORSMiddleware,
@@ -40,7 +40,7 @@ def create_app():
         index_html = static_dir / "index.html"
 
         @app.get("/{full_path:path}", include_in_schema=False)
-        def spa_fallback(full_path: str):
+        def spa_fallback(full_path: str) -> FileResponse | dict[str, str]:
             if full_path.startswith("/api"):
                 return {"detail": "Not Found"}
             if index_html.exists():

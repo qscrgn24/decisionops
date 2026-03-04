@@ -1,5 +1,6 @@
 import io
 
+
 def _sample_csv_bytes():
     csv = """item_id,name,cost,value,risk,category
 1,Item A,10,50,0.1,Cat1

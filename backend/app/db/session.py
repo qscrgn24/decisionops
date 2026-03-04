@@ -3,7 +3,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
 
-def _sqlalchemy_db_url(url: str):
+
+def _sqlalchemy_db_url(url: str) -> str:
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
 

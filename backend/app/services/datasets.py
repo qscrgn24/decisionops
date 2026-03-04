@@ -1,7 +1,9 @@
 import uuid
+
 from sqlalchemy.orm import Session
 
 from app.models.dataset import Dataset
+
 
 def create_dataset(
     db: Session,
@@ -10,7 +12,7 @@ def create_dataset(
     name:str,
     original_filename: str,
     file_bytes: bytes,
-):
+) -> Dataset:
     dataset_id = str(uuid.uuid4())
 
     dataset = Dataset(

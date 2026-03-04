@@ -1,3 +1,4 @@
+# ruff: noqa: B008
 from __future__ import annotations
 
 import base64
@@ -6,13 +7,14 @@ import hmac
 import json
 import os
 import time
+from typing import Any
 
 from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.auth.models import User
 from app.core.config import settings
 from app.db.deps import get_db
-from app.auth.models import User
 
 COOKIE_NAME = "session_token"
 COOKIE_TTL_SECONDS = 60 * 60 * 24 * 14   # 14 days
@@ -20,32 +22,32 @@ SECRET_ENV_KEY = "DO_SESSION_SECRET"
 SIGNING_SALT = "decisionops-session-v1"
 
 
-def _b64url_encode(b: bytes):
+def _b64url_encode(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).decode("utf-8").rstrip("=")
 
-def _b64url_decode(s: str):
+def _b64url_decode(s: str) -> bytes:
     padding = "=" * (-len(s) % 4)
     return base64.urlsafe_b64decode((s + padding).encode("utf-8"))
     
-def _get_secret():
+def _get_secret() -> bytes:
     secret = os.getenv(SECRET_ENV_KEY)
     if not secret:
         raise RuntimeError(f"Missing env var: {SECRET_ENV_KEY}. Set it to a long random value (32+ chars)")
     return secret.encode("utf-8")
 
-def _sign(message: bytes):
+def _sign(message: bytes) -> str:
     secret = _get_secret()
     key = hashlib.sha256(secret + SIGNING_SALT.encode("utf-8")).digest()
     sig = hmac.new(key, message, hashlib.sha256).digest()
     return _b64url_encode(sig)
 
-def _encode_token(payload: dict):
+def _encode_token(payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     body = _b64url_encode(raw)
     sig = _sign(raw)
     return f"{body}.{sig}"
 
-def _decode_token(token:str):
+def _decode_token(token:str) -> dict[str, Any] | None:
     try:
         body_b64, sig = token.split(".", 1)
         raw = _b64url_decode(body_b64)
@@ -61,7 +63,7 @@ def _decode_token(token:str):
 
 
 
-def set_session_cookie(response: Response, user_id: int):
+def set_session_cookie(response: Response, user_id: int) -> None:
     """
     Creates a signed cookie that stores:
       - uid: user id
@@ -86,11 +88,11 @@ def set_session_cookie(response: Response, user_id: int):
     )
 
 
-def clear_session_cookie(response: Response):
+def clear_session_cookie(response: Response) -> None:
     response.delete_cookie(key=COOKIE_NAME, path="/")
 
 
-def _get_user_id_from_request(request: Request):
+def _get_user_id_from_request(request: Request) -> int | None:
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         return None
@@ -111,7 +113,7 @@ def _get_user_id_from_request(request: Request):
     return payload["uid"]
 
 
-def get_current_user(request: Request, db: Session = Depends(get_db)):
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     uid = _get_user_id_from_request(request)
     if uid is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
@@ -123,7 +125,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
     return user
 
 
-def get_optional_user(request: Request, db: Session = Depends(get_db)):
+def get_optional_user(request: Request, db: Session = Depends(get_db)) -> User | None:
     uid = _get_user_id_from_request(request)
     if uid is None:
         return None

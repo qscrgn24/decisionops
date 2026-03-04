@@ -1,7 +1,8 @@
-from sqlalchemy import Integer, String, DateTime, func, ForeignKey, LargeBinary
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
 
 class Dataset(Base):
     __tablename__ = "datasets"

@@ -5,17 +5,17 @@ Revises: 32df3a503f42
 Create Date: 2026-02-01 09:41:24.928312
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '22e21de4a966'
-down_revision: Union[str, None] = '32df3a503f42'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '32df3a503f42'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

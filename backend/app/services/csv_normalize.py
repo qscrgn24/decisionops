@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 # Canonical fields we want internally
 CANON = ["item_id", "name", "cost", "value", "category", "risk"]
@@ -17,7 +17,7 @@ ALIASES: dict[str, set[str]] = {
     "risk": {"risk", "probability", "uncertainty", "volatility", "risk_score"},
 }
 
-def _norm_header(s: str):
+def _norm_header(s: str) -> str:
     # Lowercase and drop non-alphanumerics to match "Project Name", "project_name", etc.
     s = s.replace("\u00A0", " ")  # NBSP -> space
     s = s.lstrip("\ufeff").strip().lower()  # BOM + surrounding whitespace
@@ -37,13 +37,13 @@ class ColumnResolution:
 REQUIRED = {"name", "cost", "value"}
 
 
-def resolve_columns(fieldnames: Iterable[str]):
+def resolve_columns(fieldnames: Iterable[str]) -> ColumnResolution:
     original = [c for c in fieldnames if c is not None]
     normalized = [_norm_header(c) for c in original]
 
     # Build map: normalized -> original
     norm_to_orig: dict[str, str] = {}
-    for orig, norm in zip(original, normalized):
+    for orig, norm in zip(original, normalized, strict=True):
         # first ones win if duplicates
         norm_to_orig.setdefault(norm, orig)
 

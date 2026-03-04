@@ -6,6 +6,7 @@ from typing import Any
 from app.services.csv_normalize import resolve_columns
 from app.services.parse_numbers import parse_float
 
+
 @dataclass
 class PreviewResult:
     columns: list[str]
@@ -21,7 +22,7 @@ class PreviewResult:
     missing_required: list[str]
 
 
-def _dedupe(warnings: list[str]):
+def _dedupe(warnings: list[str]) -> list[str]:
     # Deduplication warnings (keep order)
     deduped = []
     seen = set()
@@ -52,7 +53,7 @@ def _open_csv_text_stream(file_bytes: bytes) -> io.StringIO:
     return io.StringIO(text)
 
 
-def preview_and_validate_csv(file_bytes: bytes, *, n: int = 20):
+def preview_and_validate_csv(file_bytes: bytes, *, n: int = 20) -> PreviewResult:
     if n < 1:
         n = 1
     if n > 200:
@@ -93,7 +94,7 @@ def preview_and_validate_csv(file_bytes: bytes, *, n: int = 20):
             risk_value = parse_float(risk_raw, default=None)
             if risk_value is None:
                 # Don't hard-fail preview; warn and ignore for scale detection
-                warnings.append(f"Some rows have non-numeric risk values; treating missing/invalid risk as 0.")
+                warnings.append("Some rows have non-numeric risk values; treating missing/invalid risk as 0.")
                 continue
             if max_risk is None or risk_value > max_risk:
                 max_risk = risk_value

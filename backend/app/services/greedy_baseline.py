@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Any, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 from app.services.csv_normalize import resolve_columns
 from app.services.parse_numbers import parse_float
 
 
-def _bytes_to_text_strem(file_bytes: bytes):
+def _bytes_to_text_strem(file_bytes: bytes) -> io.StringIO:
     if not isinstance(file_bytes, (bytes, bytearray)):
         raise TypeError("Expected raw CSV bytes.")
     if len(file_bytes) == 0:
@@ -20,7 +21,7 @@ def _bytes_to_text_strem(file_bytes: bytes):
     return io.StringIO(text)
 
 
-def _iter_items(file_bytes: bytes) -> Tuple[list[str], list[dict[str, Any]], float]:
+def _iter_items(file_bytes: bytes) -> tuple[Sequence[str], list[dict[str, Any]], float]:
     """
     Loads CSV and returns:
       - columns: original CSV columns
@@ -98,7 +99,7 @@ def _iter_items(file_bytes: bytes) -> Tuple[list[str], list[dict[str, Any]], flo
     return columns, raw_items, risk_scale
 
 
-def greedy_select(*, file_bytes: bytes, budget: float, max_items: int | None, objective: str, lambda_risk: float):
+def greedy_select(*, file_bytes: bytes, budget: float, max_items: int | None, objective: str, lambda_risk: float) -> dict[str, Any]:
     """
     Greedy baseline:
       - Score per cost descending
@@ -110,7 +111,7 @@ def greedy_select(*, file_bytes: bytes, budget: float, max_items: int | None, ob
 
     has_risk = any("risk" in it for it in items)
 
-    def item_score(item: dict[str, Any]):
+    def item_score(item: dict[str, Any]) -> float:
         value = float(item["value"])
         cost = float(item["cost"])
         risk = float(item.get("risk", 0.0))
