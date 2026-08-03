@@ -127,7 +127,7 @@ uvicorn app.main:app --reload
 ```bash
 cd frontend
 npm install
-num run dev
+npm run dev
 ```
 
 ---
