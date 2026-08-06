@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class SignUpRequest(BaseModel):
@@ -13,12 +13,11 @@ class LoginRequest(BaseModel):
 
 
 class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: EmailStr
     username: str
-
-    class Config:
-        from_attributes = True
 
 
 class AuthResponse(BaseModel):
