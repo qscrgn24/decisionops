@@ -27,12 +27,12 @@ async def read_bounded_upload(
         if not chunk:
             break
 
-        content.extend(chunk)
-
-        if len(content) > max_bytes:
+        if len(content) + len(chunk) > max_bytes:
             raise UploadTooLargeError(
                 f"Uploaded file exceeds maximum size of {max_bytes} bytes."
             )
+
+        content.extend(chunk)
 
     return bytes(content)
 
