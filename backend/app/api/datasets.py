@@ -4,10 +4,17 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.auth.session import get_current_user
+from app.core.config import settings
 from app.db.deps import get_db
 from app.models.dataset import Dataset
 from app.schemas.dataset_preview import DatasetPreviewOut
 from app.schemas.datasets import DatasetOut
+from app.services.csv_upload import (
+    CSVValidationError,
+    UploadTooLargeError,
+    read_bounded_upload,
+    validate_csv_structure,
+)
 from app.services.dataset_preview import preview_and_validate_csv
 from app.services.datasets import create_dataset
 
@@ -20,16 +27,58 @@ async def upload_dataset(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dataset:
+    dataset_name = name.strip()
+
+    if not dataset_name:
+        raise HTTPException(status_code=400, detail="Dataset name is required.")
+
+    if len(dataset_name) > settings.MAX_DATASET_NAME_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Dataset name exceeds maximum length of {settings.MAX_DATASET_NAME_CHARS} characters.",
+        )
+    
     if not file.filename:
         raise HTTPException(status_code=400, detail="File is required.")
+
+    filename = file.filename.strip()
+
+    if not filename:
+        raise HTTPException(status_code=400, detail="Filename is required.")
+
+    if len(filename) > settings.MAX_FILENAME_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Filename exceeds maximum length of {settings.MAX_FILENAME_CHARS} characters.",
+        )
     
     # Basic CSV check (MVP)
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
-    
-    content = await file.read()
-    if len(content) == 0:
-        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    try:
+        content = await read_bounded_upload(
+            file,
+            max_bytes=settings.MAX_UPLOAD_BYTES,
+        )
+    except UploadTooLargeError as exc:
+        raise HTTPException(
+            status_code=413,
+            detail="Uploaded CSV file is too large.",
+        ) from exc
+
+    try:
+        validate_csv_structure(
+            content,
+            max_rows=settings.MAX_DATASET_ROWS,
+            max_columns=settings.MAX_DATASET_COLUMNS,
+            max_cell_chars=settings.MAX_CELL_CHARS,
+        )
+    except CSVValidationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"CSV validation error: {str(exc)}",
+        ) from exc
 
     dataset = create_dataset(
         db,
@@ -50,9 +99,9 @@ def preview_dataset(dataset_id: str, n: int = 20, user: User = Depends(get_curre
 
     try:
         res = preview_and_validate_csv(dataset.file_bytes, n=n)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Failed to preview dataset.") from e
-    
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Failed to preview dataset.") from exc
+
     return DatasetPreviewOut(
         dataset_id=dataset_id,
         columns=res.columns,
