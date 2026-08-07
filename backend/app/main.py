@@ -12,12 +12,17 @@ from app.api.health import router as health_router
 from app.api.runs import router as runs_router
 from app.auth.router import router as auth_router
 from app.core.config import settings
+from app.middleware.request_size import RequestSizeLimitMiddleware
 
 load_dotenv()  # Load environment variables from .env file
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME)
+    app.add_middleware(
+        RequestSizeLimitMiddleware,
+        max_bytes=settings.MAX_REQUEST_BYTES,
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
