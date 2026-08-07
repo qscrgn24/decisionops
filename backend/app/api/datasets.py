@@ -77,7 +77,7 @@ async def upload_dataset(
     except CSVValidationError as exc:
         raise HTTPException(
             status_code=400,
-            detail=f"CSV validation error: {str(exc)}",
+            detail=str(exc),
         ) from exc
 
     dataset = create_dataset(
