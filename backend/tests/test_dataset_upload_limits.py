@@ -71,7 +71,7 @@ def test_upload_rejects_too_many_columns(
 
     response = _upload_csv(
         client,
-        csv_bytes=f"{header}\n{row}\n".encode("utf-8"),
+        csv_bytes=f"{header}\n{row}\n".encode(),
     )
 
     assert response.status_code == 400
@@ -89,7 +89,7 @@ def test_upload_rejects_oversized_cell(
     csv_bytes = (
         "name,cost,value\n"
         f"{oversized_cell},10,20\n"
-    ).encode("utf-8")
+    ).encode()
 
     response = _upload_csv(
         client,
