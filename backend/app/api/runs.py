@@ -16,8 +16,8 @@ from app.schemas.runs import RunCreate, RunOut
 from app.services.greedy_baseline import greedy_select
 from app.services.optimal_solver import solve_optimal
 from app.services.optimization_guard import (
-    GlobalOptimizationBuzyError,
-    UserOptimizationBuzyError,
+    GlobalOptimizationBusyError,
+    UserOptimizationBusyError,
     optimization_guard,
 )
 from app.services.optimization_limits import OptimizationLimitError, validate_optimization_dataset
@@ -59,9 +59,9 @@ def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), d
     try:
         with optimization_guard.acquire(user_id=user.id):
             return _execute_optimization(payload=payload, user=user, dataset=dataset, db=db)
-    except UserOptimizationBuzyError as exc:
+    except UserOptimizationBusyError as exc:
         raise HTTPException(status_code=409, detail="An optimization is already running for your account.") from exc
-    except GlobalOptimizationBuzyError as exc:
+    except GlobalOptimizationBusyError as exc:
         raise HTTPException(status_code=503, detail="Optimization capacity is currently full. Please try again shortly.", headers={"Retry-After": "5"}) from exc
 
     

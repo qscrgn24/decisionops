@@ -5,15 +5,15 @@ from threading import Lock
 from app.core.config import settings
 
 
-class OptimizationBuzyError(RuntimeError):
+class OptimizationBusyError(RuntimeError):
     pass
 
 
-class UserOptimizationBuzyError(OptimizationBuzyError):
+class UserOptimizationBusyError(OptimizationBusyError):
     pass
 
 
-class GlobalOptimizationBuzyError(OptimizationBuzyError):
+class GlobalOptimizationBusyError(OptimizationBusyError):
     pass
 
 
@@ -31,10 +31,10 @@ class OptimizationExecutionGuard:
     def acquire(self, *, user_id: int) -> Generator[None, None, None]:
         with self._lock:
             if user_id in self._active_users:
-                raise UserOptimizationBuzyError("An Optimization is already running for this user.")
+                raise UserOptimizationBusyError("An Optimization is already running for this user.")
 
-            if self._active_total > self.max_global:
-                raise GlobalOptimizationBuzyError("Optimization capacity is currently full.")
+            if self._active_total >= self.max_global:
+                raise GlobalOptimizationBusyError("Optimization capacity is currently full.")
 
             self._active_users.add(user_id)
             self._active_total += 1
