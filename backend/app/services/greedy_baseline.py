@@ -5,7 +5,9 @@ import io
 from collections.abc import Sequence
 from typing import Any
 
+from app.core.config import settings
 from app.services.csv_normalize import resolve_columns
+from app.services.optimization_limits import OptimizationLimitError, require_finite_bounded_number
 from app.services.parse_numbers import parse_float
 
 
@@ -19,6 +21,14 @@ def _bytes_to_text_strem(file_bytes: bytes) -> io.StringIO:
     except UnicodeDecodeError:
         text = file_bytes.decode("utf-8-sig", errors="replace")
     return io.StringIO(text)
+
+
+def _validate_dataset_number(value: float, *, row_number: int, field_name: str) -> float:
+    try:
+        return require_finite_bounded_number(value, field_name=field_name, max_abs_value=settings.MAX_NUMERIC_VALUE)
+    except OptimizationLimitError as exc:
+        raise ValueError(f"Row {row_number}: {exc}") from exc
+
 
 
 def _iter_items(file_bytes: bytes) -> tuple[Sequence[str], list[dict[str, Any]], float]:
@@ -58,6 +68,9 @@ def _iter_items(file_bytes: bytes) -> tuple[Sequence[str], list[dict[str, Any]],
 
         if cost is None or value is None:
             raise ValueError(f"Row {idx}: cost/value not parseable")
+
+        cost = _validate_dataset_number(cost, row_number=idx, field_name="cost")
+        value = _validate_dataset_number(value, row_number=idx, field_name="value")
 
         if cost <= 0:
             raise ValueError(f"Row {idx}: cost must be > 0")
