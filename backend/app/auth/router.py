@@ -10,17 +10,18 @@ from app.auth.schemas import AuthResponse, LoginRequest, SignUpRequest, UserOut
 from app.auth.security import hash_password, verify_password
 from app.auth.session import clear_session_cookie, get_current_user, set_session_cookie
 from app.db.deps import get_db
+from app.dependencies.rate_limit import limit_auth_read, limit_login, limit_signup
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-def _normalize_username(u: str) -> str:
-    return u.strip()
+def _normalize_username(username: str) -> str:
+    return username.strip()
 
-def _normalize_email(e: str) -> str:
-    return e.strip().lower()
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
 
 
-@router.post("/signup", response_model=AuthResponse)
+@router.post("/signup", response_model=AuthResponse, dependencies=[Depends(limit_signup)])
 def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
     email = _normalize_email(payload.email)
     username = _normalize_username(payload.username)
@@ -37,8 +38,8 @@ def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get
 
     try:
         pw_hash = hash_password(payload.password)
-    except ValueError as ve:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve)) from ve
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # Create new user
     new_user = User(email=email, username=username, password_hash=pw_hash)
@@ -51,7 +52,7 @@ def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get
     return AuthResponse(user=UserOut.model_validate(new_user))
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=AuthResponse, dependencies=[Depends(limit_login)])
 def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> AuthResponse:
     identifier = payload.identifier.strip()
     identifier_email = identifier.lower() if "@" in identifier else None
@@ -69,7 +70,7 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     return AuthResponse(user=UserOut.model_validate(user))
 
 
-@router.get("/me", response_model=AuthResponse)
+@router.get("/me", response_model=AuthResponse, dependencies=[Depends(limit_auth_read)])
 def me(user: User = Depends(get_current_user)) -> AuthResponse:
     return AuthResponse(user=UserOut.model_validate(user))
 
