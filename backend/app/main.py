@@ -13,12 +13,14 @@ from app.api.runs import router as runs_router
 from app.auth.router import router as auth_router
 from app.core.config import settings
 from app.middleware.request_size import RequestSizeLimitMiddleware
+from app.services.rate_limit import TokenBucketRateLimiter
 
 load_dotenv()  # Load environment variables from .env file
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME)
+    app.state.rate_limiter = TokenBucketRateLimiter(max_buckets=settings.MAX_RATE_LIMIT_BUCKETS)
     app.add_middleware(
         RequestSizeLimitMiddleware,
         max_bytes=settings.MAX_REQUEST_BYTES,
@@ -51,6 +53,7 @@ def create_app() -> FastAPI:
             if index_html.exists():
                 return FileResponse(index_html)
             return {"detail": "Frontend not built"}
+        
     return app
 
 
