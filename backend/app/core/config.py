@@ -33,6 +33,27 @@ class Settings(BaseSettings):
     MAX_GLOBAL_OPTIMIZATIONS: int = Field(default=1, ge=1, le=32)
     MAX_NUMERIC_VALUE: float = Field(default=1_000_000_000_000.0, gt=0, le=1_000_000_000_000_000.0)
 
+    # Rate-limiter storage boundary
+    MAX_RATE_LIMIT_BUCKETS: int = Field(default=10_000, ge=100, le=1_000_000)
+
+    # Unauthenticated authentication limits: keyed by client IP
+    SIGNUP_RATE_LIMIT_REQUESTS: int = Field(default=5, ge=1, le=10_000)
+    SIGNUP_RATE_LIMIT_WINDOW_S: int = Field(default=15 * 60, ge=1, le=86_400)
+    LOGIN_RATE_LIMIT_REQUESTS: int = Field(default=10, ge=1, le=10_000)
+    LOGIN_RATE_LIMIT_WINDOW_S: int = Field(default=5 * 60, ge=1, le=86_400)
+
+    # Authenticated limits: keyed by user ID.
+    UPLOAD_RATE_LIMIT_REQUESTS: int = Field(default=10, ge=1, le=100_000)
+    UPLOAD_RATE_LIMIT_WINDOW_S: int = Field(default=60 * 60, ge=1, le=86_400)
+    PREVIEW_RATE_LIMIT_REQUESTS: int = Field(default=60, ge=1, le=100_000)
+    PREVIEW_RATE_LIMIT_WINDOW_S: int = Field(default=5 * 60, ge=1, le=86_400)
+    RUN_CREATE_RATE_LIMIT_REQUESTS: int = Field(default=60, ge=1, le=100_000)
+    RUN_CREATE_RATE_LIMIT_WINDOW_S: int = Field(default=60 * 60, ge=1, le=86_400)
+    EXECUTE_RATE_LIMIT_REQUESTS: int = Field(default=12, ge=1, le=100_000)
+    EXECUTE_RATE_LIMIT_WINDOW_S: int = Field(default=60 * 60, ge=1, le=86_400)
+    AUTH_READ_RATE_LIMIT_REQUESTS: int = Field(default=120, ge=1, le=100_000)
+    AUTH_READ_RATE_LIMIT_WINDOW_S: int = Field(default=60, ge=1, le=86_400)
+
     @model_validator(mode="after")
     def validate_upload_limits(self) -> Self:
         minimum_request_size = self.MAX_UPLOAD_BYTES + _MULTIPART_OVERHEAD_ALLOWANCE
