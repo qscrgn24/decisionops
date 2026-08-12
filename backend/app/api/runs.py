@@ -9,6 +9,7 @@ from app.auth.models import User
 from app.auth.session import get_current_user
 from app.core.config import settings
 from app.db.deps import get_db
+from app.dependencies.rate_limit import limit_auth_read, limit_execute, limit_run_create
 from app.models.dataset import Dataset
 from app.models.run import Run
 from app.schemas.execute_all import ExecuteAllIn
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
-@router.post("", response_model=RunOut)
+@router.post("", response_model=RunOut, dependencies=[Depends(limit_run_create)])
 def create_run_endpoint(payload: RunCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Run:
     dataset = db.query(Dataset).filter(Dataset.id == payload.dataset_id, Dataset.user_id == user.id).first()
     if not dataset:
@@ -37,7 +38,7 @@ def create_run_endpoint(payload: RunCreate, user: User = Depends(get_current_use
     return run
 
 
-@router.get("/{run_id}", response_model=RunOut)
+@router.get("/{run_id}", response_model=RunOut, dependencies=[Depends(limit_auth_read)])
 def get_run_endpoint(run_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Run:
     run = get_run(db, run_id=run_id, user_id=user.id)
     if not run:
@@ -45,7 +46,7 @@ def get_run_endpoint(run_id: str, user: User = Depends(get_current_user), db: Se
     return run
 
 
-@router.post("/execute-all", response_model=RunOut)
+@router.post("/execute-all", response_model=RunOut, dependencies=[Depends(limit_execute )])
 def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Run:
     dataset = db.query(Dataset).filter(Dataset.id == payload.dataset_id, Dataset.user_id == user.id).first()
     if not dataset:
