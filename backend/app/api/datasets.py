@@ -6,6 +6,7 @@ from app.auth.models import User
 from app.auth.session import get_current_user
 from app.core.config import settings
 from app.db.deps import get_db
+from app.dependencies.rate_limit import limit_preview, limit_upload
 from app.models.dataset import Dataset
 from app.schemas.dataset_preview import DatasetPreviewOut
 from app.schemas.datasets import DatasetOut
@@ -20,7 +21,7 @@ from app.services.datasets import create_dataset
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
-@router.post("/upload", response_model=DatasetOut)
+@router.post("/upload", response_model=DatasetOut, dependencies=[Depends(limit_upload)])
 async def upload_dataset(
     name: str = Form(...),
     file: UploadFile = File(...),
@@ -53,14 +54,11 @@ async def upload_dataset(
         )
     
     # Basic CSV check (MVP)
-    if not file.filename.lower().endswith(".csv"):
+    if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
 
     try:
-        content = await read_bounded_upload(
-            file,
-            max_bytes=settings.MAX_UPLOAD_BYTES,
-        )
+        content = await read_bounded_upload(file, max_bytes=settings.MAX_UPLOAD_BYTES)
     except UploadTooLargeError as exc:
         raise HTTPException(
             status_code=413,
@@ -83,15 +81,15 @@ async def upload_dataset(
     dataset = create_dataset(
         db,
         user_id=user.id,
-        name=name,
-        original_filename=file.filename,
+        name=dataset_name,
+        original_filename=filename,
         file_bytes=content
     )
 
     return dataset
 
 
-@router.get("/{dataset_id}/preview", response_model=DatasetPreviewOut)
+@router.get("/{dataset_id}/preview", response_model=DatasetPreviewOut, dependencies=[Depends(limit_preview)])
 def preview_dataset(dataset_id: str, n: int = 20, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> DatasetPreviewOut:
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id, Dataset.user_id == user.id).first()
     if not dataset:
