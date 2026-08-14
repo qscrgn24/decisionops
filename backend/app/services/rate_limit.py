@@ -73,6 +73,8 @@ class TokenBucketRateLimiter:
             if available_tokens >= 1.0:
                 bucket.tokens = available_tokens - 1.0
 
+                return
+
             bucket.tokens = available_tokens
 
             retry_after = self._retry_after_seconds(available_tokens=available_tokens, policy=policy)
