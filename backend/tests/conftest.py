@@ -39,13 +39,16 @@ def create_test_tables(engine):
     from app.db.base import Base
 
     Base.metadata.create_all(bind=engine)
+
     yield
+
     Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture()
 def db(TestingSessionLocal) -> Generator[Session, None, None]:
     session = TestingSessionLocal()
+
     try:
         yield session
     finally:
@@ -65,21 +68,18 @@ def client(db: Session) -> Generator[TestClient, None, None]:
 
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as c:
-        yield c
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 # ---- Helpers for auth in tests ----
-
 @pytest.fixture()
 def signup_and_login(client: TestClient):
-    def _fn(email="test@example.com", username="testuser", password="StrongPass123!"):
-        r = client.post("/api/auth/signup", json={
-            "email": email,
-            "username": username,
-            "password": password,
-        })
-        assert r.status_code == 200, r.text
+    def _fn(email="test@example.com", username="testuser", password="StrongPassword123!"):
+        response = client.post("/api/auth/signup", json={"email": email, "username": username, "password": password})
+
+        assert response.status_code == 200, response.text
+
         # cookie is set by backend in response
         return {"email": email, "username": username, "password": password}
 
