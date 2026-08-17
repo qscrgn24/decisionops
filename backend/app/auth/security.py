@@ -4,11 +4,25 @@ from typing import Any
 
 from passlib.context import CryptContext
 
+MIN_NEW_PASSWORD_CHARS = 15
+MAX_PASSWORD_CHARS = 128
+
 _pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
+
+def validate_new_password(password: str) -> None:
+    if not isinstance(password, str):
+        raise ValueError("Password must be a string.")
+
+    if len(password) < MIN_NEW_PASSWORD_CHARS:
+        raise ValueError(f"Password must be at least {MIN_NEW_PASSWORD_CHARS} characters.")
+
+    if len(password) > MAX_PASSWORD_CHARS:
+        raise ValueError(f"Password must be at most {MAX_PASSWORD_CHARS} characters.")
+
+
 def hash_password(password: str) -> Any:
-    if not isinstance(password, str) or len(password) < 6:
-        raise ValueError("Password must be at least 6 characters.")
+    validate_new_password(password)
     return _pwd_context.hash(password)
 
 
