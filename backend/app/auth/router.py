@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.auth.schemas import AuthResponse, LoginRequest, SignUpRequest, UserOut
 from app.auth.security import hash_password, verify_password
-from app.auth.session import clear_session_cookie, get_current_user, set_session_cookie
+from app.auth.session import (
+    clear_session_cookie,
+    get_current_user,
+    get_optional_user,
+    set_session_cookie,
+)
 from app.db.deps import get_db
 from app.dependencies.rate_limit import limit_auth_read, limit_login, limit_signup
 
@@ -43,11 +48,12 @@ def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get
 
     # Create new user
     new_user = User(email=email, username=username, password_hash=pw_hash)
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    set_session_cookie(response, new_user.id)
+    set_session_cookie(response, new_user.id, new_user.session_version)
 
     return AuthResponse(user=UserOut.model_validate(new_user))
 
@@ -65,7 +71,7 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive.")
 
-    set_session_cookie(response, user.id)
+    set_session_cookie(response, user.id, user.session_version)
 
     return AuthResponse(user=UserOut.model_validate(user))
 
@@ -76,6 +82,11 @@ def me(user: User = Depends(get_current_user)) -> AuthResponse:
 
 
 @router.post("/logout")
-def logout(response: Response) -> dict[str, bool]:
+def logout(response: Response, user: User | None = Depends(get_optional_user), db: Session = Depends(get_db)) -> dict[str, bool]:
+    if user is not None:
+        user.session_version += 1
+        db.commit()
+
     clear_session_cookie(response)
+
     return {"ok": True}
