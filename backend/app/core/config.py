@@ -5,6 +5,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _MIB = 1024 * 1024
 _MULTIPART_OVERHEAD_ALLOWANCE = 64 * 1024
+_MIN_SESSION_SECRET_CHARS = 32
+
+_UNSAFE_PRODUCTION_SESSION_SECRETS = {
+    "your-secret-key-here-longer-than-32-characters",
+    "test-secret-do-not-use-in-production",
+}
 
 
 class Settings(BaseSettings):
@@ -55,7 +61,7 @@ class Settings(BaseSettings):
     AUTH_READ_RATE_LIMIT_WINDOW_S: int = Field(default=60, ge=1, le=86_400)
 
     @model_validator(mode="after")
-    def validate_upload_limits(self) -> Self:
+    def validate_settings(self) -> Self:
         minimum_request_size = self.MAX_UPLOAD_BYTES + _MULTIPART_OVERHEAD_ALLOWANCE
 
         if self.MAX_REQUEST_BYTES < minimum_request_size:
@@ -69,6 +75,14 @@ class Settings(BaseSettings):
 
         if self.DEFAULT_SOLVER_TIME_S > self.MAX_SOLVER_TIME_S:
             raise ValueError("DEFAULT_SOLVER_TIME_S cannot exceed MAX_SOLVER_TIME_S.")
+
+        session_secret = self.DO_SESSION_SECRET.strip()
+
+        if len(session_secret) < _MIN_SESSION_SECRET_CHARS:
+            raise ValueError(f"DO_SESSION_SECRET must be at least {_MIN_SESSION_SECRET_CHARS} characters.")
+
+        if self.ENV.lower() == "production" and session_secret in _UNSAFE_PRODUCTION_SESSION_SECRETS:
+            raise ValueError("DO_SESSION_SECRET must not use an example or test secret in production.")
         
         return self
 
@@ -78,5 +92,3 @@ settings = Settings()
 
 if not settings.DATABASE_URL:
     raise RuntimeError("DATABASE_URL is required")
-if not settings.DO_SESSION_SECRET:
-    raise RuntimeError("DO_SESSION_SECRET is required")
