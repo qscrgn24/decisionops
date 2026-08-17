@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class SignUpRequest(BaseModel):
     email: EmailStr
     username: str = Field(min_length=3, max_length=32)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=15, max_length=128)
 
 
 class LoginRequest(BaseModel):
