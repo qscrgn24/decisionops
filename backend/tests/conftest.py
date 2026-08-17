@@ -13,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 os.environ.setdefault("APP_NAME", "DecisionOps-Test")
 os.environ.setdefault("ENV", "test")
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
-os.environ.setdefault("DO_SESSION_SECRET", "test-secret-do-not-use-in-prod")
+os.environ.setdefault("DO_SESSION_SECRET", "test-secret-do-not-use-in-production")
 
 
 @pytest.fixture(scope="session")
