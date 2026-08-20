@@ -3,11 +3,13 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 from passlib.hash import argon2
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.auth.security import hash_password
 from app.auth.session import COOKIE_NAME, _decode_token, _encode_token
+from app.core.config import Settings
 
 
 def _get_test_user(db: Session, email: str = "test@example.com") -> User:
@@ -211,3 +213,8 @@ def test_existing_short_password_can_still_login(client: TestClient, db: Session
     assert response.status_code == 200
     assert response.json()["user"]["email"] == "legacy@example.com"
     assert client.cookies.get(COOKIE_NAME) is not None
+
+@pytest.mark.parametrize("environment", ["production", "prod", "production_debug"])
+def test_production_environments_reject_example_session_secret(environment: str) -> None:
+    with pytest.raises(ValidationError, match="DO_SESSION_SECRET must not use an example or test secret in production"):
+        Settings(ENV=environment, DATABASE_URL="sqlite+pysqlite:///:memory:", DO_SESSION_SECRET="your-secret-key-here-longer-than-32-characters")
