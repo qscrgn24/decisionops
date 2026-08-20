@@ -124,7 +124,7 @@ class Settings(BaseSettings):
             raise ValueError("ALLOWED_ORIGINS must not contain a wildcard.")
 
         if not self.trusted_hosts:
-            raise ValueError("TRUSTED_HOSTS must contain at least one origin.")
+            raise ValueError("TRUSTED_HOSTS must contain at least one host.")
 
         if "*" in self.trusted_hosts:
             raise ValueError("TRUSTED_HOSTS must not contain a wildcard.")
