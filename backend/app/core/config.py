@@ -19,6 +19,10 @@ _UNSAFE_PRODUCTION_SESSION_SECRETS = {
 }
 
 
+def _split_csv_setting(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -26,6 +30,21 @@ class Settings(BaseSettings):
     ENV: str = "production"
     DATABASE_URL: str = ""
     DO_SESSION_SECRET: str = ""
+
+    # Browser/request boundary
+    ALLOWED_ORIGINS: str = (
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "https://decisionops.vsinghania.dev,"
+        "https://decisionops.onrender.com"
+    )
+    TRUSTED_HOSTS: str = (
+            "localhost,"
+            "127.0.0.1,"
+            "testserver,"
+            "decisionops.vsinghania.dev,"
+            "decisionops.onrender.com"
+        )
 
     # Request and dataset boundaries
     MAX_REQUEST_BYTES: int = Field(default=3 * _MIB, ge=128 * 1024, le=100 * _MIB)
@@ -66,6 +85,14 @@ class Settings(BaseSettings):
     AUTH_READ_RATE_LIMIT_REQUESTS: int = Field(default=120, ge=1, le=100_000)
     AUTH_READ_RATE_LIMIT_WINDOW_S: int = Field(default=60, ge=1, le=86_400)
 
+    @property
+    def allowed_origins(self) -> list[str]:
+        return _split_csv_setting(self.ALLOWED_ORIGINS)
+
+    @property
+    def trusted_hosts(self) -> list[str]:
+        return _split_csv_setting(self.TRUSTED_HOSTS)
+
     @model_validator(mode="after")
     def validate_settings(self) -> Self:
         minimum_request_size = self.MAX_UPLOAD_BYTES + _MULTIPART_OVERHEAD_ALLOWANCE
@@ -89,6 +116,18 @@ class Settings(BaseSettings):
 
         if self.ENV.lower() in _PRODUCTION_ENVS and session_secret in _UNSAFE_PRODUCTION_SESSION_SECRETS:
             raise ValueError("DO_SESSION_SECRET must not use an example or test secret in production.")
+
+        if not self.allowed_origins:
+            raise ValueError("ALLOWED_ORIGINS must contain at least one origin.")
+
+        if "*" in self.allowed_origins:
+            raise ValueError("ALLOWED_ORIGINS must not contain a wildcard.")
+
+        if not self.trusted_hosts:
+            raise ValueError("TRUSTED_HOSTS must contain at least one origin.")
+
+        if "*" in self.trusted_hosts:
+            raise ValueError("TRUSTED_HOSTS must not contain a wildcard.")
         
         return self
 
