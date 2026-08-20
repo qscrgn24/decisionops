@@ -7,6 +7,12 @@ _MIB = 1024 * 1024
 _MULTIPART_OVERHEAD_ALLOWANCE = 64 * 1024
 _MIN_SESSION_SECRET_CHARS = 32
 
+_PRODUCTION_ENVS = {
+    "production",
+    "prod",
+    "production_debug",
+}
+
 _UNSAFE_PRODUCTION_SESSION_SECRETS = {
     "your-secret-key-here-longer-than-32-characters",
     "test-secret-do-not-use-in-production",
@@ -81,7 +87,7 @@ class Settings(BaseSettings):
         if len(session_secret) < _MIN_SESSION_SECRET_CHARS:
             raise ValueError(f"DO_SESSION_SECRET must be at least {_MIN_SESSION_SECRET_CHARS} characters.")
 
-        if self.ENV.lower() == "production" and session_secret in _UNSAFE_PRODUCTION_SESSION_SECRETS:
+        if self.ENV.lower() in _PRODUCTION_ENVS and session_secret in _UNSAFE_PRODUCTION_SESSION_SECRETS:
             raise ValueError("DO_SESSION_SECRET must not use an example or test secret in production.")
         
         return self
