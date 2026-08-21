@@ -1,5 +1,5 @@
 # ruff: noqa: B008
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
@@ -17,27 +17,19 @@ from app.services.csv_upload import (
     validate_csv_structure,
 )
 from app.services.dataset_preview import preview_and_validate_csv
-from app.services.datasets import create_dataset
+from app.services.datasets import create_dataset, delete_dataset
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
 @router.post("/upload", response_model=DatasetOut, dependencies=[Depends(limit_upload)])
-async def upload_dataset(
-    name: str = Form(...),
-    file: UploadFile = File(...),
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> Dataset:
+async def upload_dataset(name: str = Form(...), file: UploadFile = File(...), user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Dataset:
     dataset_name = name.strip()
 
     if not dataset_name:
         raise HTTPException(status_code=400, detail="Dataset name is required.")
 
     if len(dataset_name) > settings.MAX_DATASET_NAME_CHARS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Dataset name exceeds maximum length of {settings.MAX_DATASET_NAME_CHARS} characters.",
-        )
+        raise HTTPException(status_code=400, detail=f"Dataset name exceeds maximum length of {settings.MAX_DATASET_NAME_CHARS} characters.")
     
     if not file.filename:
         raise HTTPException(status_code=400, detail="File is required.")
@@ -48,10 +40,7 @@ async def upload_dataset(
         raise HTTPException(status_code=400, detail="Filename is required.")
 
     if len(filename) > settings.MAX_FILENAME_CHARS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Filename exceeds maximum length of {settings.MAX_FILENAME_CHARS} characters.",
-        )
+        raise HTTPException(status_code=400, detail=f"Filename exceeds maximum length of {settings.MAX_FILENAME_CHARS} characters.",)
     
     # Basic CSV check (MVP)
     if not filename.lower().endswith(".csv"):
@@ -60,31 +49,14 @@ async def upload_dataset(
     try:
         content = await read_bounded_upload(file, max_bytes=settings.MAX_UPLOAD_BYTES)
     except UploadTooLargeError as exc:
-        raise HTTPException(
-            status_code=413,
-            detail="Uploaded CSV file is too large.",
-        ) from exc
+        raise HTTPException(status_code=413, detail="Uploaded CSV file is too large.") from exc
 
     try:
-        validate_csv_structure(
-            content,
-            max_rows=settings.MAX_DATASET_ROWS,
-            max_columns=settings.MAX_DATASET_COLUMNS,
-            max_cell_chars=settings.MAX_CELL_CHARS,
-        )
+        validate_csv_structure(content, max_rows=settings.MAX_DATASET_ROWS, max_columns=settings.MAX_DATASET_COLUMNS, max_cell_chars=settings.MAX_CELL_CHARS)
     except CSVValidationError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        ) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    dataset = create_dataset(
-        db,
-        user_id=user.id,
-        name=dataset_name,
-        original_filename=filename,
-        file_bytes=content
-    )
+    dataset = create_dataset(db, user_id=user.id, name=dataset_name, original_filename=filename, file_bytes=content)
 
     return dataset
 
@@ -112,3 +84,13 @@ def preview_dataset(dataset_id: str, n: int = 20, user: User = Depends(get_curre
         rows=res.rows,
         warnings=res.warnings
     )
+
+
+@router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dataset_endpoint(dataset_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Response:
+    deleted = delete_dataset(db, dataset_id=dataset_id, user_id=user.id)
+
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found.")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
