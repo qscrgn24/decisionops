@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
         index_html = static_dir / "index.html"
 
-        @app.get("/{full_path:path}", include_in_schema=False)
+        @app.get("/{full_path:path}", include_in_schema=False, response_model=None)
         def spa_fallback(full_path: str) -> FileResponse | dict[str, str]:
             if full_path.startswith("/api"):
                 return {"detail": "Not Found"}
