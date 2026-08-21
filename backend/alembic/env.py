@@ -32,7 +32,7 @@ target_metadata = Base.metadata
 # ... etc.
 
 
-def _get_database_url():
+def _get_database_url() -> str:
     db_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
 
     if not db_url:
