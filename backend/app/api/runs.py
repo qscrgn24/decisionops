@@ -1,7 +1,7 @@
 # ruff: noqa: B008
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -22,7 +22,7 @@ from app.services.optimization_guard import (
     optimization_guard,
 )
 from app.services.optimization_limits import OptimizationLimitError, validate_optimization_dataset
-from app.services.runs import create_run, get_run, update_run
+from app.services.runs import create_run, delete_run, get_run, update_run
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,16 @@ def get_run_endpoint(run_id: str, user: User = Depends(get_current_user), db: Se
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     return run
+
+
+@router.delete("/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_run_endpoint(run_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> Response:
+    deleted = delete_run(db, run_id=run_id, user_id=user.id)
+
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/execute-all", response_model=RunOut, dependencies=[Depends(limit_execute )])
