@@ -1,8 +1,11 @@
 # ruff: noqa: B008
 from __future__ import annotations
 
+from typing import NoReturn
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
@@ -19,11 +22,24 @@ from app.dependencies.rate_limit import limit_auth_read, limit_login, limit_sign
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
 def _normalize_username(username: str) -> str:
     return username.strip()
 
+
 def _normalize_email(email: str) -> str:
     return email.strip().lower()
+
+
+def _find_conflicting_user(db: Session, *, email: str, username: str) -> User | None:
+    return db.query(User).filter(or_(User.email == email, User.username == username)).first()
+
+
+def _raise_duplicate_user_error(existing_user: User, *, email: str) -> NoReturn:
+    if existing_user.email == email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already in use.")
+
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already in use.")
 
 
 @router.post("/signup", response_model=AuthResponse, dependencies=[Depends(limit_signup)])
@@ -35,22 +51,33 @@ def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username cannot contain spaces.")
 
     # Check if email or username already exists
-    existing_user = db.query(User).filter(or_(User.email == email, User.username == username)).first()
-    if existing_user:
-        if existing_user.email == email:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already in use.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already in use.")
+    existing_user = _find_conflicting_user(db, email=email, username=username)
+
+    if existing_user is not None:
+        _raise_duplicate_user_error(existing_user, email=email)
 
     try:
-        pw_hash = hash_password(payload.password)
+        password_hash = hash_password(payload.password)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # Create new user
-    new_user = User(email=email, username=username, password_hash=pw_hash)
+    new_user = User(email=email, username=username, password_hash=password_hash)
 
     db.add(new_user)
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+
+        existing_user = _find_conflicting_user(db, email=email, username=username)
+        
+        if existing_user is not None:
+            _raise_duplicate_user_error(existing_user, email=email)
+
+        raise
+
     db.refresh(new_user)
 
     set_session_cookie(response, new_user.id, new_user.session_version)
