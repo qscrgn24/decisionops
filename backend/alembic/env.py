@@ -1,7 +1,7 @@
 import os
 from logging.config import fileConfig
 
-from sqlalchemy import create_engine, engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
 from alembic import context
 from app.auth.models import OAuthAccount, User  # noqa: F401
@@ -34,10 +34,16 @@ target_metadata = Base.metadata
 
 def _get_database_url():
     db_url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+
+    if not db_url:
+        raise RuntimeError("Database URL is not configured. Set DATABASE_URL or sqlalchemy.url")
+
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
+
     if db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
     return db_url
 
 
@@ -54,6 +60,7 @@ def run_migrations_offline() -> None:
 
     """
     url = _get_database_url()
+
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -72,21 +79,12 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    db_url = os.getenv("DATABASE_URL")
     url = _get_database_url()
-    if db_url:
-        connectable = create_engine(url, poolclass=pool.NullPool)
-    else:
-        connectable = engine_from_config(
-            config.get_section(config.config_ini_section, {}),
-            prefix="sqlalchemy.",
-            poolclass=pool.NullPool,
-        )
+
+    connectable = create_engine(url, poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
