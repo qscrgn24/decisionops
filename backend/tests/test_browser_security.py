@@ -94,3 +94,21 @@ def test_disallowed_cors_preflight_is_rejected(client: TestClient) -> None:
     assert response.status_code == 400
 
     assert "access-control-allow-origin" not in response.headers
+
+def test_cross_site_origin_is_blocked_for_delete(client: TestClient) -> None:
+    response = client.delete("/api/datasets/nonexistent", headers={"Origin": "https://evil.example"})
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Cross-site request blocked"}
+
+
+def test_allowed_delete_cors_preflight_succeeds(client: TestClient) -> None:
+    response = client.options("/api/datasets/nonexistent", headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "DELETE", "Access-Control-Request-Headers": "Content-Type"})
+
+    assert response.status_code == 200
+
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+    assert "DELETE" in response.headers["access-control-allow-methods"]
