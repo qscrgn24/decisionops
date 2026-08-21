@@ -52,7 +52,7 @@ def test_token_bucket_refills_over_time() -> None:
 
 def test_rate_limit_identities_are_isolated() -> None:
     clock = FakeClock()
-    
+
     limiter = TokenBucketRateLimiter(max_buckets=10, clock=clock)
     policy = RateLimitPolicy(name="test", requests=1, window_seconds=60)
 
@@ -106,7 +106,7 @@ def test_rate_limiter_bounds_bucket_storage() -> None:
 
 def test_rate_limiter_removes_inactive_buckets() -> None:
     clock = FakeClock()
-    
+
     limiter = TokenBucketRateLimiter(max_buckets=2, clock=clock)
     policy = RateLimitPolicy(name="test", requests=1, window_seconds=60)
 
@@ -143,7 +143,7 @@ def test_rate_limiter_is_thread_safe() -> None:
 def test_login_endpoint_returns_429_and_retry_after(client: TestClient) -> None:
     payload = {
         "identifier": "does-not-exist@example.com",
-        "password": "IncorrectPassword123!", 
+        "password": "IncorrectPassword123!",
     }
 
     for _ in range(settings.LOGIN_RATE_LIMIT_REQUESTS):

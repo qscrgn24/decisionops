@@ -55,7 +55,7 @@ def create_app() -> FastAPI:
             if index_html.exists():
                 return FileResponse(index_html)
             return {"detail": "Frontend not built"}
-        
+
     return app
 
 

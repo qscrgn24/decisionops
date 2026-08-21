@@ -72,7 +72,7 @@ def signup(payload: SignUpRequest, response: Response, db: Session = Depends(get
         db.rollback()
 
         existing_user = _find_conflicting_user(db, email=email, username=username)
-        
+
         if existing_user is not None:
             _raise_duplicate_user_error(existing_user, email=email)
 
@@ -94,7 +94,7 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
 
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
-    
+
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive.")
 

@@ -33,7 +33,7 @@ def create_run_endpoint(payload: RunCreate, user: User = Depends(get_current_use
     dataset = db.query(Dataset).filter(Dataset.id == payload.dataset_id, Dataset.user_id == user.id).first()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    
+
     run = create_run(db, user_id=user.id, dataset_id=payload.dataset_id, config_json=payload.config.model_dump())
     return run
 
@@ -75,7 +75,7 @@ def execute_all(payload: ExecuteAllIn, user: User = Depends(get_current_user), d
     except GlobalOptimizationBusyError as exc:
         raise HTTPException(status_code=503, detail="Optimization capacity is currently full. Please try again shortly.", headers={"Retry-After": "5"}) from exc
 
-    
+
 def _execute_optimization(*, payload: ExecuteAllIn, user: User, dataset: Dataset, db: Session) -> Run:
     run = create_run(
             db,
@@ -89,7 +89,7 @@ def _execute_optimization(*, payload: ExecuteAllIn, user: User, dataset: Dataset
                 "time_limit_s": payload.time_limit_s,
             },
         )
-    
+
     run.status = "running"
     run.error = None
     update_run(db, run)
@@ -117,7 +117,7 @@ def _execute_optimization(*, payload: ExecuteAllIn, user: User, dataset: Dataset
         run.status = "succeeded"
         run.error = None
         return update_run(db, run)
-    
+
     except Exception:
         logger.exception("Optimization execution failed. run_id=%s user_id=%s dataset_id=%s", run.id, user.id, dataset.id)
         run.status = "failed"

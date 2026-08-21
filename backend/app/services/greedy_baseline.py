@@ -119,7 +119,7 @@ def greedy_select(*, file_bytes: bytes, budget: float, max_items: int | None, ob
       - Add while budget allows
       - Optional max_items cap
     """
-    
+
     columns, items, risk_scale = _iter_items(file_bytes)
 
     has_risk = any("risk" in it for it in items)
@@ -133,7 +133,7 @@ def greedy_select(*, file_bytes: bytes, budget: float, max_items: int | None, ob
         else:
             value_eff = value
         return value_eff / cost
-    
+
     # Sort by score desc (stable tie-breakers for determinism)
     items_sorted = sorted(items, key=lambda item: (item_score(item), float(item["value"]), -float(item["cost"])), reverse=True)
 

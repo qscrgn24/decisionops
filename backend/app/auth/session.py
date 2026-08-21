@@ -42,11 +42,11 @@ def _b64url_encode(value: bytes) -> str:
 def _b64url_decode(value: str) -> bytes:
     if not value:
         raise ValueError("Empty base64 value.")
-    
+
     padding = "=" * (-len(value) % 4)
 
     return base64.b64decode((value + padding).encode("ascii"), altchars=b"-_", validate=True)
-    
+
 def _get_secret() -> bytes:
     return settings.DO_SESSION_SECRET.encode("utf-8")
 
@@ -81,7 +81,7 @@ def _decode_token(token: str) -> dict[str, object] | None:
 
         if not hmac.compare_digest(expected_signature, supplied_signature):
             return None
-        
+
         payload =  json.loads(raw.decode("utf-8"))
 
         if not isinstance(payload, dict):
@@ -89,9 +89,9 @@ def _decode_token(token: str) -> dict[str, object] | None:
 
         if not all(isinstance(key, str) for key in payload):
             return None
-        
+
         return cast(dict[str, object], payload)
-    
+
     except (UnicodeDecodeError, UnicodeEncodeError, ValueError, TypeError, json.JSONDecodeError):
         return None
 
@@ -184,12 +184,12 @@ def _get_session_claims_from_request(request: Request) -> _SessionClaims | None:
 
     if not token:
         return None
-    
+
     payload = _decode_token(token)
 
     if not payload:
         return None
-    
+
     return _parse_sesssion_claims(payload)
 
 
@@ -198,7 +198,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
     if claims is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-    
+
     user = db.get(User, claims.user_id)
 
     if not user or not user.is_active:
@@ -215,7 +215,7 @@ def get_optional_user(request: Request, db: Session = Depends(get_db)) -> User |
 
     if claims is None:
         return None
-    
+
     user = db.get(User, claims.user_id )
 
     if not user or not user.is_active:

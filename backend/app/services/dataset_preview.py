@@ -58,7 +58,7 @@ def preview_and_validate_csv(file_bytes: bytes, *, n: int = 20) -> PreviewResult
         n = 1
     if n > 200:
         n = 200   # prevent huge responnses
-    
+
     warnings: list[str] = []
 
     # --- Pass 1: read header + detect columns + compute max risk + count rows ---
@@ -69,7 +69,7 @@ def preview_and_validate_csv(file_bytes: bytes, *, n: int = 20) -> PreviewResult
     reader = csv.DictReader(f1)
     if reader.fieldnames is None:
         raise ValueError("CSV file is missing a header row.")
-    
+
     # IMPORTANT:
     # - Use RAW headers for resolve_columns so row.get(col) matches DictReader keys exactly.
     # - Keep a stripped version only for display back to the frontend.
@@ -127,7 +127,7 @@ def preview_and_validate_csv(file_bytes: bytes, *, n: int = 20) -> PreviewResult
             resolved_columns=resolved_columns,
             missing_required=res.missing_required,
         )
-        
+
     risk_scale = None
     if has_risk:
         if max_risk is None:
@@ -141,7 +141,7 @@ def preview_and_validate_csv(file_bytes: bytes, *, n: int = 20) -> PreviewResult
         else:
             warnings.append("Risk values must be in [0,1] or [0,100]. Treating invalid risk as 0.")
             risk_scale = "0-1"
-            
+
     # --- Pass 2: produce preview rows (first n) with basic type validation ---
     rows_out: list[dict[str, Any]] = []
 

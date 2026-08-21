@@ -128,7 +128,7 @@ class Settings(BaseSettings):
 
         if "*" in self.trusted_hosts:
             raise ValueError("TRUSTED_HOSTS must not contain a wildcard.")
-        
+
         return self
 
 

@@ -26,7 +26,7 @@ def _validate_solver_time_limit(time_limit_s: float) -> float:
         raise ValueError("time_limit_s exceeds the configured maximum.")
 
     return time_limit
-               
+
 
 def solve_optimal(
     *,
@@ -70,7 +70,7 @@ def solve_optimal(
             raise ValueError("max_items exceeds the configured maximum.")
 
     time_limit = _validate_solver_time_limit(time_limit_s)
-    
+
     # Prepare arrays
     n = len(items)
 
@@ -118,7 +118,7 @@ def solve_optimal(
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         raise RuntimeError("No feasible solution found within the time limit")
-    
+
     selected = []
     total_cost_i = 0
     total_value_i = 0
@@ -169,4 +169,3 @@ def solve_optimal(
 
     return result
 
-     

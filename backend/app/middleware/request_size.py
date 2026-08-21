@@ -15,7 +15,7 @@ class RequestSizeLimitMiddleware:
             self,
             scope: Scope,
             receive: Receive,
-            send: Send,      
+            send: Send,
     ) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)

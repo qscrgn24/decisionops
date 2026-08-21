@@ -30,7 +30,7 @@ async def upload_dataset(name: str = Form(...), file: UploadFile = File(...), us
 
     if len(dataset_name) > settings.MAX_DATASET_NAME_CHARS:
         raise HTTPException(status_code=400, detail=f"Dataset name exceeds maximum length of {settings.MAX_DATASET_NAME_CHARS} characters.")
-    
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="File is required.")
 
@@ -41,7 +41,7 @@ async def upload_dataset(name: str = Form(...), file: UploadFile = File(...), us
 
     if len(filename) > settings.MAX_FILENAME_CHARS:
         raise HTTPException(status_code=400, detail=f"Filename exceeds maximum length of {settings.MAX_FILENAME_CHARS} characters.",)
-    
+
     # Basic CSV check (MVP)
     if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
