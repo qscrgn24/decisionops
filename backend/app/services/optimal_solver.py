@@ -125,7 +125,7 @@ def solve_optimal(
     total_risk = 0.0
 
     for i in range(n):
-        if solver.Value(x[i]) == 1:
+        if solver.Value(x[i]) != 1:
             continue
 
         item = items[i]
